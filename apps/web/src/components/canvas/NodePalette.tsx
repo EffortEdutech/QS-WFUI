@@ -75,7 +75,7 @@ export default function NodePalette() {
   };
 
   return (
-    <aside className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-r border-gray-200 bg-white">
+    <aside className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header + search */}
       <div className="p-3 border-b border-gray-100">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">

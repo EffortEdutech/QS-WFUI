@@ -129,8 +129,8 @@ export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props
           <div className="py-8 text-center text-xs text-gray-400">No logs available.</div>
         )}
 
-        {logs.map((log) => (
-          <NodeLogRow key={log.nodeId} log={log} />
+        {logs.map((log, i) => (
+          <NodeLogRow key={log.nodeId ?? String(i)} log={log} />
         ))}
       </div>
 

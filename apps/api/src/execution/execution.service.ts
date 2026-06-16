@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import { FileService } from '../file/file.service';
+import { LibraryService } from '../library/library.service';
 import { buildRealNodeResolver } from './real-nodes';
 import { runWorkflow } from '@qsos/execution-engine';
 import type { QSWorkflowDefinition } from '@qsos/shared-types';
@@ -27,9 +28,10 @@ export class ExecutionService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly fileService: FileService,
+    private readonly libraryService: LibraryService,
   ) {
-    // Build once — injects FileService so real nodes can download from storage
-    this.nodeResolver = buildRealNodeResolver(this.fileService);
+    // Build once — injects services so real nodes can resolve files from uploads or library
+    this.nodeResolver = buildRealNodeResolver(this.fileService, this.libraryService);
   }
 
   // ── Trigger ────────────────────────────────────────────────────────────────

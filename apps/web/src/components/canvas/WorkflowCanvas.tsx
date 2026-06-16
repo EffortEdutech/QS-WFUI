@@ -64,12 +64,16 @@ interface WorkflowCanvasProps {
   definition: QSWorkflowDefinition;
   onSave?: (updated: QSWorkflowDefinition) => void;
   readOnly?: boolean;
+  organizationId?: string;
+  projectId?: string;
 }
 
 export default function WorkflowCanvas({
   definition,
   onSave,
   readOnly = false,
+  organizationId,
+  projectId,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(toRFNodes(definition.nodes));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toRFEdges(definition.connections));
@@ -121,6 +125,24 @@ export default function WorkflowCanvas({
       });
     },
     [onEdgesChange, setEdges, nodes, scheduleAutoSave],
+  );
+
+  /** Delete the currently selected node (called from PropertyPanel or keyboard) */
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => {
+        const updated = nds.filter((n) => n.id !== nodeId);
+        scheduleAutoSave(updated, edges);
+        return updated;
+      });
+      setEdges((eds) => {
+        const updated = eds.filter((e) => e.source !== nodeId && e.target !== nodeId);
+        scheduleAutoSave(nodes.filter((n) => n.id !== nodeId), updated);
+        return updated;
+      });
+      setSelectedNode(null);
+    },
+    [setNodes, setEdges, scheduleAutoSave, edges, nodes],
   );
 
   /** Update a node's config from the property panel */
@@ -184,6 +206,7 @@ export default function WorkflowCanvas({
           onConnect={readOnly ? undefined : onConnect}
           onNodeClick={(_, node) => setSelectedNode(node)}
           onPaneClick={() => setSelectedNode(null)}
+          deleteKeyCode={readOnly ? null : ['Delete', 'Backspace']}
           fitView
           attributionPosition="bottom-right"
         >
@@ -201,6 +224,9 @@ export default function WorkflowCanvas({
       <PropertyPanel
         selectedNode={selectedNode}
         onConfigChange={handleConfigChange}
+        onDeleteNode={readOnly ? undefined : handleDeleteNode}
+        organizationId={organizationId}
+        projectId={projectId}
       />
     </div>
   );

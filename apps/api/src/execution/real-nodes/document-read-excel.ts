@@ -8,6 +8,7 @@
 import * as XLSX from 'xlsx';
 import type { NodeContext, NodeExecuteResult } from '@qsos/execution-engine';
 import type { FileService } from '../../file/file.service';
+import type { LibraryService } from '../../library/library.service';
 
 export interface ExcelRow {
   row: number;
@@ -17,52 +18,95 @@ export interface ExcelRow {
 export async function realReadExcel(
   ctx: NodeContext,
   fileService: FileService,
+  libraryService?: LibraryService,
 ): Promise<NodeExecuteResult> {
+  // ── Resolve file source ───────────────────────────────────────────────────
+  // Priority:
+  //   1. config.library_file_id — design-time library selection (S8)
+  //   2. inputs.file_id         — runtime upload (legacy flow)
+  //   3. config.file_id         — static config fallback
+
+  const libraryFileId = ctx.config['library_file_id'] as string | undefined;
   const fileId = (ctx.inputs['file_id'] ?? ctx.config['file_id']) as string | undefined;
 
-  if (!fileId) {
-    return {
-      status: 'failure',
-      outputs: {},
-      logs: [],
-      error: { code: 'NO_FILE_ID', message: 'No file_id provided in inputs or config' },
-    };
-  }
-
-  ctx.logger.info(`Fetching upload record: ${fileId}`);
-
-  // Get upload metadata
-  let storagePath: string;
-  try {
-    const upload = await fileService.getUpload(fileId);
-    storagePath = upload.storage_path as string;
-    ctx.logger.info(`Storage path: ${storagePath}`);
-  } catch (err: unknown) {
-    return {
-      status: 'failure',
-      outputs: {},
-      logs: [],
-      error: {
-        code: 'UPLOAD_NOT_FOUND',
-        message: err instanceof Error ? err.message : 'Upload not found',
-      },
-    };
-  }
-
-  // Download file bytes
-  ctx.logger.info('Downloading file from storage...');
   let fileBuffer: Buffer;
-  try {
-    fileBuffer = await fileService.downloadFile(storagePath);
-    ctx.logger.info(`Downloaded ${fileBuffer.length} bytes`);
-  } catch (err: unknown) {
+
+  if (libraryFileId && libraryService) {
+    // ── Library path ──────────────────────────────────────────────────────
+    ctx.logger.info(`Reading from library file: ${libraryFileId}`);
+    let storagePath: string;
+    try {
+      const libFile = await libraryService.getFile(libraryFileId);
+      storagePath = libFile.storage_path;
+      ctx.logger.info(`Library storage path: ${storagePath}`);
+    } catch (err: unknown) {
+      return {
+        status: 'failure',
+        outputs: {},
+        logs: [],
+        error: {
+          code: 'LIBRARY_FILE_NOT_FOUND',
+          message: err instanceof Error ? err.message : 'Library file not found',
+        },
+      };
+    }
+    ctx.logger.info('Downloading library file from storage...');
+    try {
+      fileBuffer = await libraryService.downloadFile(storagePath);
+      ctx.logger.info(`Downloaded ${fileBuffer.length} bytes`);
+    } catch (err: unknown) {
+      return {
+        status: 'failure',
+        outputs: {},
+        logs: [],
+        error: {
+          code: 'DOWNLOAD_FAILED',
+          message: err instanceof Error ? err.message : 'Download failed',
+        },
+      };
+    }
+  } else if (fileId) {
+    // ── Upload path (existing flow) ───────────────────────────────────────
+    ctx.logger.info(`Fetching upload record: ${fileId}`);
+    let storagePath: string;
+    try {
+      const upload = await fileService.getUpload(fileId);
+      storagePath = upload.storage_path as string;
+      ctx.logger.info(`Storage path: ${storagePath}`);
+    } catch (err: unknown) {
+      return {
+        status: 'failure',
+        outputs: {},
+        logs: [],
+        error: {
+          code: 'UPLOAD_NOT_FOUND',
+          message: err instanceof Error ? err.message : 'Upload not found',
+        },
+      };
+    }
+    ctx.logger.info('Downloading file from storage...');
+    try {
+      fileBuffer = await fileService.downloadFile(storagePath);
+      ctx.logger.info(`Downloaded ${fileBuffer.length} bytes`);
+    } catch (err: unknown) {
+      return {
+        status: 'failure',
+        outputs: {},
+        logs: [],
+        error: {
+          code: 'DOWNLOAD_FAILED',
+          message: err instanceof Error ? err.message : 'Download failed',
+        },
+      };
+    }
+  } else {
     return {
       status: 'failure',
       outputs: {},
       logs: [],
       error: {
-        code: 'DOWNLOAD_FAILED',
-        message: err instanceof Error ? err.message : 'Download failed',
+        code: 'NO_FILE_ID',
+        message: 'No file source provided. Set library_file_id in config or connect an upload node.',
       },
     };
   }
@@ -108,9 +152,15 @@ export async function realReadExcel(
   }) as (string | number | boolean | null)[][];
 
   // Find header row (first row with at least 3 non-empty cells)
+  // header_row is 1-based. Only use it when it is a positive integer.
+  // Treat 0, null, "", undefined as "auto-detect" so that the PropertyPanel
+  // default value of 1 that was shipped in migration 0005 doesn't silently
+  // corrupt the parse when users open & re-save the node.
+  const headerRowRaw = ctx.config['header_row'];
+  const headerRowNum = Number(headerRowRaw);
   const headerRowIndex =
-    (ctx.config['header_row'] as number | undefined) !== undefined
-      ? Number(ctx.config['header_row']) - 1   // 1-based → 0-based
+    headerRowRaw !== undefined && headerRowRaw !== null && headerRowRaw !== '' && headerRowNum > 0
+      ? headerRowNum - 1   // 1-based → 0-based
       : raw.findIndex((row) => row.filter(Boolean).length >= 3);
 
   if (headerRowIndex < 0) {

@@ -31,12 +31,25 @@ async function request<T>(
   return res.json() as Promise<ApiResponse<T>>;
 }
 
+/** Multipart upload — does NOT set Content-Type so browser adds boundary automatically */
+async function requestForm<T>(path: string, body: FormData): Promise<ApiResponse<T>> {
+  const token = await getToken();
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.json() as Promise<ApiResponse<T>>;
+}
+
 export const apiClient = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) =>
+  get:      <T>(path: string) => request<T>(path),
+  post:     <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-  patch: <T>(path: string, body: unknown) =>
+  patch:    <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  put: <T>(path: string, body: unknown) =>
+  put:      <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete:   <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, body: FormData) => requestForm<T>(path, body),
 };

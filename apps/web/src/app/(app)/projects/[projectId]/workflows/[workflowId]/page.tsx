@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import NodePalette from '@/components/canvas/NodePalette';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
 import FileUploadPanel from '@/components/canvas/FileUploadPanel';
+import LibraryPanel from '@/components/canvas/LibraryPanel';
 import { apiClient } from '@/lib/api/client';
 import { createClient } from '@/lib/supabase/client';
 import type { QSWorkflowDefinition } from '@qsos/shared-types';
@@ -53,7 +54,19 @@ const FILE_NODE_TYPES = new Set([
 ]);
 
 function workflowNeedsFile(definition: QSWorkflowDefinition): boolean {
-  return definition.nodes?.some((n) => FILE_NODE_TYPES.has(n.type)) ?? false;
+  const nodes = definition.nodes ?? [];
+  if (nodes.length === 0) return false;
+
+  // If there are read_excel nodes, only prompt for upload when at least one
+  // has no library_file_id — the library takes priority at runtime so nodes
+  // that are already wired to the library don't need a runtime upload.
+  const readExcelNodes = nodes.filter((n) => n.type === 'document.read_excel');
+  if (readExcelNodes.length > 0) {
+    return readExcelNodes.some((n) => !n.config?.library_file_id);
+  }
+
+  // No read_excel nodes — fall back to type-based check.
+  return nodes.some((n) => FILE_NODE_TYPES.has(n.type));
 }
 
 export default function WorkflowEditorPage({ params }: PageProps) {
@@ -70,6 +83,9 @@ export default function WorkflowEditorPage({ params }: PageProps) {
   const [runSummary, setRunSummary] = useState<RunSummary | null>(null);
   const [runLogs, setRunLogs] = useState<NodeLog[]>([]);
   const [runError, setRunError] = useState<string | null>(null);
+
+  // ── Sidebar tab ───────────────────────────────────────────────────────────
+  const [sidebarTab, setSidebarTab] = useState<'nodes' | 'documents'>('nodes');
 
   // ── File upload state ──────────────────────────────────────────────────────
   const [showUploadPanel, setShowUploadPanel] = useState(false);
@@ -271,11 +287,41 @@ export default function WorkflowEditorPage({ params }: PageProps) {
 
       {/* ── Canvas area ── */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        <NodePalette />
+        {/* ── Left sidebar with tab switcher ── */}
+        <div className="flex flex-col w-56 flex-shrink-0 border-r border-gray-200 bg-white">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 flex-shrink-0">
+            {(['nodes', 'documents'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSidebarTab(tab)}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                  sidebarTab === tab
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab === 'nodes' ? '⬡ Nodes' : '📂 Documents'}
+              </button>
+            ))}
+          </div>
+          {/* Panel content */}
+          <div className="flex-1 overflow-hidden">
+            {sidebarTab === 'nodes'
+              ? <NodePalette />
+              : <LibraryPanel organizationId={organizationId} projectId={projectId} />
+            }
+          </div>
+        </div>
         <main className="relative flex-1 overflow-hidden flex flex-col">
           {/* Canvas */}
           <div className="flex-1 overflow-hidden">
-            <WorkflowCanvas definition={definition} onSave={handleSave} />
+            <WorkflowCanvas
+              definition={definition}
+              onSave={handleSave}
+              organizationId={organizationId}
+              projectId={projectId}
+            />
           </div>
 
           {/* File upload overlay */}
