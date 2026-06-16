@@ -8,6 +8,8 @@ import { ProjectModule } from './project/project.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { NodeModule } from './node/node.module';
 import { ExecutionModule } from './execution/execution.module';
+import { FileModule } from './file/file.module';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ExecutionModule } from './execution/execution.module';
     WorkflowModule,
     NodeModule,           // Sprint 5 — node registry + pack registry
     ExecutionModule,      // Sprint 6 — workflow execution engine
+    FileModule,           // Sprint 7 — file uploads to Supabase Storage
+    MulterModule.register({ dest: '/tmp/uploads' }),  // in-memory buffer preferred
   ],
 })
 export class AppModule {}

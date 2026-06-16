@@ -39,3 +39,12 @@ supabase/.temp/
 
 # Misc
 .turbo/
+
+# Microsoft Office temp files (open document locks)
+~$*.xlsx
+~$*.xls
+~$*.docx
+~$*.doc
+~$*.pptx
+~$*.ppt
+

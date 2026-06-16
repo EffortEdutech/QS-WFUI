@@ -77,6 +77,12 @@ export interface RunnerOptions {
   definition: QSWorkflowDefinition;
   inputs?: Record<string, unknown>;
   variables?: Record<string, unknown>;
+  /**
+   * Sprint 7: Optional resolver that returns a REAL node executor.
+   * If it returns null for a given nodeType, the runner falls back to mock.
+   * Inject from NestJS context to give nodes access to DB/Storage services.
+   */
+  nodeResolver?: (nodeType: string) => ((ctx: NodeContext) => Promise<NodeExecuteResult>) | null;
 }
 
 // ── Mock node result factory (used by mock registry) ─────────────────────────

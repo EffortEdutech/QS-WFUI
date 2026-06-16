@@ -14,13 +14,23 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
+import { FileService } from '../file/file.service';
+import { buildRealNodeResolver } from './real-nodes';
 import { runWorkflow } from '@qsos/execution-engine';
 import type { QSWorkflowDefinition } from '@qsos/shared-types';
 import type { TriggerRunDto } from './dto/trigger-run.dto';
 
 @Injectable()
 export class ExecutionService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly nodeResolver: ReturnType<typeof buildRealNodeResolver>;
+
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly fileService: FileService,
+  ) {
+    // Build once — injects FileService so real nodes can download from storage
+    this.nodeResolver = buildRealNodeResolver(this.fileService);
+  }
 
   // ── Trigger ────────────────────────────────────────────────────────────────
 
@@ -81,6 +91,7 @@ export class ExecutionService {
         definition,
         inputs: dto.inputs ?? {},
         variables: dto.variables ?? {},
+        nodeResolver: this.nodeResolver,  // Sprint 7: real nodes for read_excel + read_boq
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

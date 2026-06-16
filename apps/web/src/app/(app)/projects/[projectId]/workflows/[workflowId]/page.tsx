@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import NodePalette from '@/components/canvas/NodePalette';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
+import FileUploadPanel from '@/components/canvas/FileUploadPanel';
 import { apiClient } from '@/lib/api/client';
+import { createClient } from '@/lib/supabase/client';
 import type { QSWorkflowDefinition } from '@qsos/shared-types';
 
-// React Flow must be client-only (uses browser APIs)
 const WorkflowCanvas = dynamic(() => import('@/components/canvas/WorkflowCanvas'), {
   ssr: false,
   loading: () => (
@@ -44,12 +45,24 @@ interface RunSummary {
   nodeCount: number;
 }
 
+// Node types that need a file input before running
+const FILE_NODE_TYPES = new Set([
+  'document.upload_file',
+  'document.read_excel',
+  'qs.read_boq',
+]);
+
+function workflowNeedsFile(definition: QSWorkflowDefinition): boolean {
+  return definition.nodes?.some((n) => FILE_NODE_TYPES.has(n.type)) ?? false;
+}
+
 export default function WorkflowEditorPage({ params }: PageProps) {
   const { projectId, workflowId } = params;
   const [definition, setDefinition] = useState<QSWorkflowDefinition | null>(null);
   const [workflowName, setWorkflowName] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [error, setError] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string>('');
 
   // ── Execution state ────────────────────────────────────────────────────────
   const [running, setRunning] = useState(false);
@@ -58,9 +71,20 @@ export default function WorkflowEditorPage({ params }: PageProps) {
   const [runLogs, setRunLogs] = useState<NodeLog[]>([]);
   const [runError, setRunError] = useState<string | null>(null);
 
+  // ── File upload state ──────────────────────────────────────────────────────
+  const [showUploadPanel, setShowUploadPanel] = useState(false);
+  const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
   // ── Load workflow ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Load org context for file upload
+    apiClient.get<{ id: string; name: string; membership: { role: string } }[]>('/organizations')
+      .then((res) => {
+        if (res.data?.[0]) setOrganizationId(res.data[0].id);
+      });
+
     apiClient
       .get<{ definition: QSWorkflowDefinition; name: string }>(
         `/projects/${projectId}/workflows/${workflowId}`,
@@ -96,17 +120,47 @@ export default function WorkflowEditorPage({ params }: PageProps) {
 
   // ── Run workflow ───────────────────────────────────────────────────────────
 
-  const handleRun = useCallback(async () => {
+  const handleRunClick = useCallback(() => {
+    if (!definition) return;
+    // If workflow uses file nodes and no file uploaded yet, show upload panel
+    if (workflowNeedsFile(definition) && !uploadedFileId) {
+      setShowUploadPanel(true);
+      return;
+    }
+    void executeRun();
+  }, [definition, uploadedFileId]);
+
+  const handleFileUploaded = useCallback((fileId: string, fileName: string) => {
+    setUploadedFileId(fileId);
+    setUploadedFileName(fileName);
+    setShowUploadPanel(false);
+    // Auto-start run after upload
+    setTimeout(() => void executeRun(fileId), 300);
+  }, []);
+
+  const handleSkipUpload = useCallback(() => {
+    setShowUploadPanel(false);
+    void executeRun();
+  }, []);
+
+  async function executeRun(fileId?: string) {
     setRunning(true);
     setShowLogs(true);
     setRunSummary(null);
     setRunLogs([]);
     setRunError(null);
 
+    // Build inputs — pass file_id if available
+    const inputs: Record<string, unknown> = {};
+    const resolvedFileId = fileId ?? uploadedFileId;
+    if (resolvedFileId) {
+      inputs['file_id'] = resolvedFileId;
+    }
+
     try {
       const res = await apiClient.post<RunSummary>(
         `/workflows/${workflowId}/run`,
-        { inputs: {} },
+        { inputs },
       );
 
       if (!res.success || !res.data) {
@@ -118,7 +172,6 @@ export default function WorkflowEditorPage({ params }: PageProps) {
       const summary = res.data;
       setRunSummary(summary);
 
-      // Fetch logs
       const logsRes = await apiClient.get<NodeLog[]>(`/runs/${summary.runId}/logs`);
       setRunLogs(logsRes.data ?? []);
     } catch (err: unknown) {
@@ -126,7 +179,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     } finally {
       setRunning(false);
     }
-  }, [workflowId]);
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -136,7 +189,6 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     unsaved: 'Unsaved changes',
     error: '⚠ Save failed',
   };
-
   const saveLabelColor: Record<SaveState, string> = {
     saved: 'text-green-600',
     saving: 'text-gray-400',
@@ -145,11 +197,8 @@ export default function WorkflowEditorPage({ params }: PageProps) {
   };
 
   if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center text-red-500">{error}</div>
-    );
+    return <div className="flex h-screen items-center justify-center text-red-500">{error}</div>;
   }
-
   if (!definition) {
     return (
       <div className="flex h-screen items-center justify-center text-gray-400 text-sm">
@@ -170,10 +219,28 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           {saveLabel[saveState]}
         </span>
 
+        {/* Uploaded file badge */}
+        {uploadedFileName && (
+          <>
+            <span className="text-gray-300">|</span>
+            <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+              <span>📎</span>
+              <span className="truncate max-w-[160px]">{uploadedFileName}</span>
+              <button
+                onClick={() => { setUploadedFileId(null); setUploadedFileName(null); }}
+                className="text-green-400 hover:text-green-600 ml-0.5"
+                title="Remove file"
+              >
+                ✕
+              </button>
+            </span>
+          </>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           {/* Run button */}
           <button
-            onClick={handleRun}
+            onClick={handleRunClick}
             disabled={running}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               running
@@ -191,7 +258,6 @@ export default function WorkflowEditorPage({ params }: PageProps) {
             )}
           </button>
 
-          {/* Show logs toggle (if hidden) */}
           {!showLogs && runSummary && (
             <button
               onClick={() => setShowLogs(true)}
@@ -209,11 +275,19 @@ export default function WorkflowEditorPage({ params }: PageProps) {
         <main className="relative flex-1 overflow-hidden flex flex-col">
           {/* Canvas */}
           <div className="flex-1 overflow-hidden">
-            <WorkflowCanvas
-              definition={definition}
-              onSave={handleSave}
-            />
+            <WorkflowCanvas definition={definition} onSave={handleSave} />
           </div>
+
+          {/* File upload overlay */}
+          {showUploadPanel && organizationId && (
+            <FileUploadPanel
+              organizationId={organizationId}
+              projectId={projectId}
+              workflowId={workflowId}
+              onUploaded={handleFileUploaded}
+              onSkip={handleSkipUpload}
+            />
+          )}
 
           {/* Run error banner */}
           {runError && !showLogs && (

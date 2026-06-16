@@ -3,10 +3,11 @@
  *
  * Executes a workflow plan sequentially, node by node.
  * Writes status + log entries for each step.
- * Sprint 6 (S6-002) — in-process mock execution (no external node packages yet).
+ * Sprint 6 (S6-002) — in-process mock execution.
+ * Sprint 7 (S7-005) — real node resolver support (prefer real over mock).
  */
 
-import type { NodeContext } from '@qsos/node-sdk';
+import type { NodeContext, NodeExecuteResult } from '@qsos/node-sdk';
 import type {
   RunnerOptions,
   ExecutionResult,
@@ -16,6 +17,8 @@ import type {
 } from './types';
 import { planWorkflow } from './graph-planner';
 import { getMockExecutor } from './mock-registry';
+
+type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 
@@ -109,7 +112,11 @@ export class WorkflowRunner {
       };
 
       try {
-        const executor = getMockExecutor(step.nodeType);
+        // Prefer real implementation when available, fall back to mock
+        const realExecutor = this.options.nodeResolver?.(step.nodeType) ?? null;
+        const executor: NodeExecutor = realExecutor ?? getMockExecutor(step.nodeType);
+        const isReal = realExecutor !== null;
+        ctx.logger.info(`[${isReal ? 'REAL' : 'MOCK'}] Executing ${step.nodeType}`);
         const result = await executor(ctx);
 
         const nodeCompletedAt = new Date().toISOString();
