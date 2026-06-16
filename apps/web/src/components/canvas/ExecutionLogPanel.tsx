@@ -4,8 +4,19 @@
  * ExecutionLogPanel
  *
  * Displays per-node execution log entries after a workflow run.
- * Shown below the canvas after the Run button is clicked.
+ * Sprint 6: basic log rows
+ * Sprint 9: artifact download section for procurement.generate_rfq outputs
  */
+
+interface RfqArtifact {
+  trade: string;
+  label: string;
+  url: string;
+  size_bytes: number;
+  package_value: number;
+  currency: string;
+  item_count: number;
+}
 
 interface NodeLog {
   nodeId: string;
@@ -52,20 +63,25 @@ function fmt(ms?: number): string {
 
 function NodeLogRow({ log }: { log: NodeLog }) {
   const styles = STATUS_STYLES[log.status] ?? STATUS_STYLES['pending'];
+  // DB rows arrive snake_case; TS interface is camelCase — read both
+  const raw = log as Record<string, unknown>;
+  const nodeName   = log.nodeName   ?? raw['node_name']   as string ?? '—';
+  const nodeType   = log.nodeType   ?? raw['node_type']   as string ?? '';
+  const durationMs = log.durationMs ?? raw['duration_ms'] as number | undefined;
 
   return (
     <div className="border-b border-gray-100 last:border-0 py-3 px-4">
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
-        <span className="text-sm font-medium text-gray-800 flex-1 truncate">{log.nodeName}</span>
+        <span className="text-sm font-medium text-gray-800 flex-1 truncate">{nodeName}</span>
         <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${styles.badge}`}>
           {log.status}
         </span>
-        {log.durationMs !== undefined && (
-          <span className="text-xs text-gray-400 ml-1">{fmt(log.durationMs)}</span>
+        {durationMs !== undefined && (
+          <span className="text-xs text-gray-400 ml-1">{fmt(durationMs)}</span>
         )}
       </div>
-      <p className="ml-4 mt-0.5 text-[11px] text-gray-400 font-mono">{log.nodeType}</p>
+      <p className="ml-4 mt-0.5 text-[11px] text-gray-400 font-mono">{nodeType}</p>
 
       {/* Error */}
       {log.error && (
@@ -86,6 +102,65 @@ function NodeLogRow({ log }: { log: NodeLog }) {
   );
 }
 
+/** Extract RFQ artifacts from the procurement.generate_rfq node logs.
+ *  Handles both camelCase (NodeLog interface) and snake_case (raw DB rows). */
+function extractArtifacts(logs: NodeLog[]): RfqArtifact[] {
+  for (const log of logs) {
+    // DB returns snake_case; TS interface uses camelCase — handle both
+    const nodeType = log.nodeType ?? (log as Record<string, unknown>)['node_type'] as string;
+    const outputs  = log.outputs  ?? (log as Record<string, unknown>)['outputs']   as Record<string, unknown>;
+    if (nodeType === 'procurement.generate_rfq' && log.status === 'completed') {
+      const docs = outputs?.['documents'];
+      if (Array.isArray(docs) && docs.length > 0) {
+        return docs as RfqArtifact[];
+      }
+    }
+  }
+  return [];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function ArtifactSection({ artifacts }: { artifacts: RfqArtifact[] }) {
+  if (artifacts.length === 0) return null;
+  return (
+    <div className="border-t border-blue-100 bg-blue-50 px-4 py-3 flex-shrink-0">
+      <p className="text-[11px] font-semibold text-blue-800 uppercase tracking-wide mb-2">
+        📄 RFQ Documents Ready — {artifacts.length} file{artifacts.length > 1 ? 's' : ''} generated
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {artifacts.map((a) => (
+          <a
+            key={a.trade}
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="flex items-center gap-1.5 bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 rounded-lg px-3 py-1.5 transition-colors group"
+          >
+            <span className="text-blue-500 text-base">⬇</span>
+            <span className="flex flex-col min-w-0">
+              <span className="text-[11px] font-semibold text-blue-800 group-hover:text-blue-900 truncate max-w-[140px]">
+                {a.label}
+              </span>
+              <span className="text-[10px] text-blue-400">
+                {a.item_count} items · {formatBytes(a.size_bytes)}
+              </span>
+            </span>
+          </a>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] text-blue-400 italic">
+        Links expire in 2 hours · AI-assisted, for human review only
+      </p>
+    </div>
+  );
+}
+
 export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props) {
   const runStatusStyle = run?.status === 'completed'
     ? 'text-green-700 bg-green-50 border-green-200'
@@ -93,8 +168,10 @@ export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props
     ? 'text-red-700 bg-red-50 border-red-200'
     : 'text-blue-700 bg-blue-50 border-blue-200';
 
+  const artifacts = extractArtifacts(logs);
+
   return (
-    <div className="flex flex-col border-t border-gray-200 bg-white" style={{ height: 280 }}>
+    <div className="flex flex-col border-t border-gray-200 bg-white" style={{ height: artifacts.length > 0 ? 340 : 280 }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 flex-shrink-0">
         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
@@ -133,6 +210,9 @@ export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props
           <NodeLogRow key={log.nodeId ?? String(i)} log={log} />
         ))}
       </div>
+
+      {/* Artifact downloads (Sprint 9 — procurement.generate_rfq) */}
+      <ArtifactSection artifacts={artifacts} />
 
       {/* Run ID */}
       {run?.runId && (

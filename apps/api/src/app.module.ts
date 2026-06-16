@@ -10,6 +10,7 @@ import { NodeModule } from './node/node.module';
 import { ExecutionModule } from './execution/execution.module';
 import { FileModule } from './file/file.module';
 import { LibraryModule } from './library/library.module';
+import { AiModule } from './ai/ai.module';
 import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
@@ -28,6 +29,7 @@ import { MulterModule } from '@nestjs/platform-express';
     ExecutionModule,      // Sprint 6 — workflow execution engine
     FileModule,           // Sprint 7 — file uploads to Supabase Storage
     LibraryModule,        // Sprint 8 — project document library
+    AiModule,             // Sprint 9 — OpenAI wrapper (global, keyword fallback when key absent)
     MulterModule.register({ dest: '/tmp/uploads' }),  // in-memory buffer preferred
   ],
 })

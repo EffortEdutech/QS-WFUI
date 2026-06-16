@@ -148,4 +148,42 @@ export class LibraryService {
     }
     return Buffer.from(await data.arrayBuffer());
   }
+
+  /**
+   * Upload a raw Buffer to storage.
+   * Used by procurement.generate_rfq to persist generated DOCX artifacts.
+   * Returns the storage path (same as the input path on success).
+   */
+  async uploadBuffer(
+    buffer: Buffer,
+    storagePath: string,
+    contentType: string,
+  ): Promise<string> {
+    const { error } = await this.supabase.admin.storage
+      .from(BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true });
+
+    if (error) {
+      throw new BadRequestException(`Storage upload failed: ${error.message}`);
+    }
+    return storagePath;
+  }
+
+  /**
+   * Create a short-lived signed URL for a storage object.
+   * Default expiry: 2 hours (7200 s) — long enough for the user to download.
+   */
+  async createSignedUrl(
+    storagePath: string,
+    expiresIn = 7200,
+  ): Promise<string> {
+    const { data, error } = await this.supabase.admin.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, expiresIn);
+
+    if (error ?? !data?.signedUrl) {
+      throw new BadRequestException(`Failed to create signed URL: ${error?.message}`);
+    }
+    return data.signedUrl;
+  }
 }

@@ -3,14 +3,19 @@
  *
  * Returns a real implementation function for node types that have one.
  * Falls back to mock for everything else.
- * Sprint 7 (S7-004) · Sprint 8 (S8-003)
+ * Sprint 7 (S7-004) · Sprint 8 (S8-003) · Sprint 9 (S9-003)
  */
 import type { NodeContext, NodeExecuteResult } from '@qsos/execution-engine';
 import type { FileService } from '../../file/file.service';
 import type { LibraryService } from '../../library/library.service';
+import type { AiService } from '../../ai/ai.service';
 import { realUploadFile } from './document-upload-file';
 import { realReadExcel } from './document-read-excel';
 import { realReadBoq } from './qs-read-boq';
+import { realCleanBoq } from './qs-clean-boq';
+import { realClassifyTrade } from './qs-classify-trade';
+import { realSplitWorkPackage } from './qs-split-work-package';
+import { realGenerateRfq } from './procurement-generate-rfq';
 
 type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
 
@@ -21,11 +26,21 @@ type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
 export function buildRealNodeResolver(
   fileService: FileService,
   libraryService: LibraryService,
+  aiService: AiService,
 ): (nodeType: string) => NodeExecutor | null {
   const realNodes: Record<string, NodeExecutor> = {
+    // ── Document Pack ─────────────────────────────────────────────────────────
     'document.upload_file': (ctx) => realUploadFile(ctx),
     'document.read_excel':  (ctx) => realReadExcel(ctx, fileService, libraryService),
+
+    // ── QS Pack ───────────────────────────────────────────────────────────────
     'qs.read_boq':          (ctx) => realReadBoq(ctx),
+    'qs.clean_boq':         (ctx) => realCleanBoq(ctx),
+    'qs.classify_trade':    (ctx) => realClassifyTrade(ctx, aiService),
+    'qs.split_work_package':(ctx) => realSplitWorkPackage(ctx),
+
+    // ── Procurement Pack ──────────────────────────────────────────────────────
+    'procurement.generate_rfq': (ctx) => realGenerateRfq(ctx, libraryService),
   };
 
   return (nodeType: string) => realNodes[nodeType] ?? null;

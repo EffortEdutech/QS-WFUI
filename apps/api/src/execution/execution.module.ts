@@ -4,6 +4,9 @@ import { ExecutionService } from './execution.service';
 import { FileModule } from '../file/file.module';
 import { LibraryModule } from '../library/library.module';
 
+// AiModule is @Global() and imported in AppModule — no need to import here.
+// AiService is available via NestJS global scope.
+
 @Module({
   imports: [FileModule, LibraryModule],
   controllers: [ExecutionController],
