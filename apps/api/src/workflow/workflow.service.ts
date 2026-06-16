@@ -64,6 +64,22 @@ export class WorkflowService {
       .single();
 
     if (error ?? !data) throw new Error(error?.message ?? 'Failed to create workflow');
+
+    // Audit log (S10-005) — fire-and-forget
+    const { data: proj } = await this.supabase.admin
+      .from('projects').select('organization_id').eq('id', projectId).maybeSingle();
+    if (proj) {
+      void this.supabase.admin.from('audit_log').insert({
+        organization_id: proj.organization_id,
+        project_id:      projectId,
+        actor_id:        userId,
+        event_type:      'workflow.created',
+        entity_type:     'workflow',
+        entity_id:       (data as { id: string }).id,
+        summary:         `Workflow "${dto.name}" created`,
+      });
+    }
+
     return data;
   }
 

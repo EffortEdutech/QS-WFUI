@@ -46,6 +46,20 @@ interface Props {
   onClose: () => void;
 }
 
+/** S10-004: User-friendly error code descriptions */
+const ERROR_HINTS: Record<string, string> = {
+  NO_BOQ:             'No BOQ data received. Connect a Read BOQ node above this node.',
+  NO_ITEMS:           'BOQ has no items. Verify the Excel file contains data rows.',
+  FILE_NOT_FOUND:     'BOQ file not found. Upload the file via the Library panel first.',
+  NO_FILE_ID:         'No file selected. Open the node properties and choose a BOQ file.',
+  PARSE_ERROR:        'Could not read the Excel file. Ensure it is a valid .xlsx file.',
+  AI_UNAVAILABLE:     'AI service not reachable. Using keyword classification as fallback.',
+  ALL_PACKAGES_FAILED:'All RFQ documents failed to generate. Check Supabase Storage bucket permissions.',
+  CYCLE_DETECTED:     'Workflow has a circular dependency. Remove the looping connection.',
+  RUNNER_EXCEPTION:   'An unexpected error stopped the run. Check the API logs.',
+  UNHANDLED_EXCEPTION:'A node threw an unexpected error. See the message below for details.',
+};
+
 const STATUS_STYLES: Record<string, { dot: string; badge: string }> = {
   completed: { dot: 'bg-green-500', badge: 'bg-green-100 text-green-700' },
   failed:    { dot: 'bg-red-500',   badge: 'bg-red-100 text-red-700' },
@@ -85,8 +99,12 @@ function NodeLogRow({ log }: { log: NodeLog }) {
 
       {/* Error */}
       {log.error && (
-        <div className="ml-4 mt-1.5 rounded bg-red-50 border border-red-200 px-2 py-1">
-          <p className="text-[11px] text-red-700 font-mono">{log.error.code}: {log.error.message}</p>
+        <div className="ml-4 mt-1.5 rounded bg-red-50 border border-red-200 px-2 py-1.5 space-y-0.5">
+          <p className="text-[11px] text-red-700 font-mono font-semibold">{log.error.code}</p>
+          <p className="text-[11px] text-red-600">{log.error.message}</p>
+          {ERROR_HINTS[log.error.code] && (
+            <p className="text-[11px] text-red-500 italic">💡 {ERROR_HINTS[log.error.code]}</p>
+          )}
         </div>
       )}
 

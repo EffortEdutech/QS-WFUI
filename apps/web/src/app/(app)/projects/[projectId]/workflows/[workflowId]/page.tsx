@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import NodePalette from '@/components/canvas/NodePalette';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
 import FileUploadPanel from '@/components/canvas/FileUploadPanel';
@@ -226,7 +227,15 @@ export default function WorkflowEditorPage({ params }: PageProps) {
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       {/* ── Toolbar ── */}
-      <header className="flex h-12 flex-shrink-0 items-center gap-4 border-b border-gray-200 bg-white px-4">
+      <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4">
+        {/* Breadcrumb */}
+        <Link
+          href={`/projects/${projectId}`}
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+        >
+          ← Workflows
+        </Link>
+        <span className="text-gray-200">|</span>
         <span className="text-sm font-semibold text-gray-800 truncate max-w-xs">
           {workflowName}
         </span>

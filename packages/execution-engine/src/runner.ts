@@ -36,7 +36,7 @@ export class WorkflowRunner {
   }
 
   async run(): Promise<ExecutionResult> {
-    const { definition, workflowId, projectId, organizationId, userId, inputs = {}, variables = {} } = this.options;
+    const { definition, executionId, workflowId, projectId, organizationId, userId, inputs = {}, variables = {} } = this.options;
     const startedAt = new Date().toISOString();
     const logs: NodeLogEntry[] = [];
 
@@ -95,7 +95,7 @@ export class WorkflowRunner {
       // Build NodeContext
       const nodeMessages: string[] = [];
       const ctx: NodeContext = {
-        executionId: `run-${Date.now()}`,
+        executionId: executionId ?? `run-${Date.now()}`,
         workflowId,
         projectId,
         organizationId,

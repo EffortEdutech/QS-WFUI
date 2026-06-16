@@ -70,6 +70,8 @@ export interface ExecutionResult {
 // ── Runner options ────────────────────────────────────────────────────────────
 
 export interface RunnerOptions {
+  /** Actual DB run ID (UUID) — pass from ExecutionService so real nodes can write audit rows */
+  executionId?: string;
   workflowId: string;
   projectId: string;
   organizationId: string;

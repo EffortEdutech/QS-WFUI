@@ -92,6 +92,7 @@ export class ExecutionService {
     let result;
     try {
       result = await runWorkflow({
+        executionId: runId,               // Sprint 10: pass real UUID so approval_tasks FK resolves
         workflowId,
         projectId: workflow.project_id as string,
         organizationId: project.organization_id as string,
@@ -140,6 +141,24 @@ export class ExecutionService {
       completed_at: result.completedAt,
       duration_ms: result.durationMs,
     }).eq('id', runId);
+
+    // Audit log — sprint 10 (S10-005)
+    await this.supabase.admin.from('audit_log').insert({
+      organization_id: project.organization_id,
+      project_id:      workflow.project_id,
+      actor_id:        userId,
+      event_type:      result.status === 'completed' ? 'run.completed' : 'run.failed',
+      entity_type:     'run',
+      entity_id:       runId,
+      summary: result.status === 'completed'
+        ? `Workflow "${workflow.name}" run completed in ${result.durationMs}ms — ${result.logs.filter((l) => l.status !== 'skipped').length} nodes executed`
+        : `Workflow "${workflow.name}" run failed: ${result.error?.message ?? 'unknown error'}`,
+      metadata: {
+        workflow_id: workflowId,
+        duration_ms: result.durationMs,
+        node_count:  result.logs.length,
+      },
+    }).then(() => { /* fire-and-forget, don't block response */ });
 
     return {
       runId,
