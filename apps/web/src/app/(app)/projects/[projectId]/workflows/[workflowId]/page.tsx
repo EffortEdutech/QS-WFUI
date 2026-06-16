@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import NodePalette from '@/components/canvas/NodePalette';
+import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
 import { apiClient } from '@/lib/api/client';
 import type { QSWorkflowDefinition } from '@qsos/shared-types';
 
@@ -22,12 +23,40 @@ interface PageProps {
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
+interface NodeLog {
+  nodeId: string;
+  nodeType: string;
+  nodeName: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting';
+  inputs?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
+  error?: { code: string; message: string };
+  messages: string[];
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+interface RunSummary {
+  runId: string;
+  status: string;
+  durationMs: number;
+  nodeCount: number;
+}
+
 export default function WorkflowEditorPage({ params }: PageProps) {
   const { projectId, workflowId } = params;
   const [definition, setDefinition] = useState<QSWorkflowDefinition | null>(null);
   const [workflowName, setWorkflowName] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [error, setError] = useState<string | null>(null);
+
+  // ── Execution state ────────────────────────────────────────────────────────
+  const [running, setRunning] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [runSummary, setRunSummary] = useState<RunSummary | null>(null);
+  const [runLogs, setRunLogs] = useState<NodeLog[]>([]);
+  const [runError, setRunError] = useState<string | null>(null);
 
   // ── Load workflow ──────────────────────────────────────────────────────────
 
@@ -64,6 +93,40 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     },
     [projectId, workflowId],
   );
+
+  // ── Run workflow ───────────────────────────────────────────────────────────
+
+  const handleRun = useCallback(async () => {
+    setRunning(true);
+    setShowLogs(true);
+    setRunSummary(null);
+    setRunLogs([]);
+    setRunError(null);
+
+    try {
+      const res = await apiClient.post<RunSummary>(
+        `/workflows/${workflowId}/run`,
+        { inputs: {} },
+      );
+
+      if (!res.success || !res.data) {
+        setRunError(res.error?.message ?? 'Run failed');
+        setRunning(false);
+        return;
+      }
+
+      const summary = res.data;
+      setRunSummary(summary);
+
+      // Fetch logs
+      const logsRes = await apiClient.get<NodeLog[]>(`/runs/${summary.runId}/logs`);
+      setRunLogs(logsRes.data ?? []);
+    } catch (err: unknown) {
+      setRunError(err instanceof Error ? err.message : 'Unexpected error');
+    } finally {
+      setRunning(false);
+    }
+  }, [workflowId]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -106,21 +169,69 @@ export default function WorkflowEditorPage({ params }: PageProps) {
         <span className={`text-xs ${saveLabelColor[saveState]}`}>
           {saveLabel[saveState]}
         </span>
+
         <div className="ml-auto flex items-center gap-2">
-          <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-600">
-            Sprint 2 — Canvas
-          </span>
+          {/* Run button */}
+          <button
+            onClick={handleRun}
+            disabled={running}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              running
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {running ? (
+              <>
+                <span className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-green-400 animate-spin" />
+                Running…
+              </>
+            ) : (
+              <>▶ Run</>
+            )}
+          </button>
+
+          {/* Show logs toggle (if hidden) */}
+          {!showLogs && runSummary && (
+            <button
+              onClick={() => setShowLogs(true)}
+              className="text-xs text-blue-500 hover:text-blue-600"
+            >
+              View logs
+            </button>
+          )}
         </div>
       </header>
 
       {/* ── Canvas area ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         <NodePalette />
-        <main className="relative flex-1 overflow-hidden">
-          <WorkflowCanvas
-            definition={definition}
-            onSave={handleSave}
-          />
+        <main className="relative flex-1 overflow-hidden flex flex-col">
+          {/* Canvas */}
+          <div className="flex-1 overflow-hidden">
+            <WorkflowCanvas
+              definition={definition}
+              onSave={handleSave}
+            />
+          </div>
+
+          {/* Run error banner */}
+          {runError && !showLogs && (
+            <div className="absolute bottom-4 left-4 right-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center gap-2">
+              <span>⚠ {runError}</span>
+              <button onClick={() => setRunError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
+
+          {/* Execution log panel */}
+          {showLogs && (
+            <ExecutionLogPanel
+              run={runSummary}
+              logs={runLogs}
+              loading={running}
+              onClose={() => setShowLogs(false)}
+            />
+          )}
         </main>
       </div>
     </div>

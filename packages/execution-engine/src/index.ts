@@ -1,31 +1,33 @@
 /**
  * @qsos/execution-engine
  *
- * Workflow execution engine — DAG traversal, node scheduling, and state machine.
- * Sprint 1 stub — full implementation in Sprint 4 (BullMQ queue integration).
+ * Workflow execution engine for QS-OS.
+ * Sprint 6 (S6-002) — sequential mock execution.
  *
- * Will provide:
- *   - WorkflowRunner class (run, pause, resume, cancel)
- *   - ExecutionContext (variables, nodeOutputs, logger)
- *   - DAGResolver (topological sort, cycle detection)
- *   - ExecutionStateManager (Supabase-backed state persistence)
+ * @example
+ *   import { runWorkflow } from '@qsos/execution-engine';
+ *   const result = await runWorkflow({ workflowId, projectId, ... });
  */
 
 export const EXECUTION_ENGINE_VERSION = '0.1.0' as const;
 
-/**
- * Placeholder runner — replaced in Sprint 4.
- */
-export async function runWorkflow(
-  _workflowId: string,
-  _input: Record<string, unknown>,
-): Promise<{ executionId: string }> {
-  throw new Error(
-    '[execution-engine] runWorkflow is a Sprint 1 stub — full implementation in Sprint 4.',
-  );
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
+export type {
+  RunStatus,
+  NodeRunStatus,
+  ExecutionStep,
+  ExecutionPlan,
+  NodeLogEntry,
+  ExecutionResult,
+  RunnerOptions,
+  MockNodeExecutor,
+} from './types';
 
-// Sprint 4: export { WorkflowRunner } from './runner';
-// Sprint 4: export { DAGResolver } from './dag-resolver';
-// Sprint 4: export { ExecutionStateManager } from './state-manager';
-// Sprint 4: export type { ExecutionContext, RunnerOptions } from './types';
+// ── Graph planner ─────────────────────────────────────────────────────────────
+export { planWorkflow } from './graph-planner';
+
+// ── Mock registry ─────────────────────────────────────────────────────────────
+export { getMockExecutor, hasMockFor } from './mock-registry';
+
+// ── Runner ────────────────────────────────────────────────────────────────────
+export { WorkflowRunner, runWorkflow } from './runner';

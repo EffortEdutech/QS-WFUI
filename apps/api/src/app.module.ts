@@ -7,6 +7,7 @@ import { OrganizationModule } from './organization/organization.module';
 import { ProjectModule } from './project/project.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { NodeModule } from './node/node.module';
+import { ExecutionModule } from './execution/execution.module';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { NodeModule } from './node/node.module';
     ProjectModule,
     WorkflowModule,
     NodeModule,           // Sprint 5 — node registry + pack registry
-    // Sprint 6: ExecutionModule
+    ExecutionModule,      // Sprint 6 — workflow execution engine
   ],
 })
 export class AppModule {}
