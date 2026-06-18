@@ -1,10 +1,22 @@
 # QS-OS Product Positioning Blueprint V1  
 ## AI Business Capability Platform / Business Intelligence Automation Operating System
 
+> ⚠️ **SUPERSEDED NOTICE — Read alongside V3 Architecture**
+>
+> This document remains valid as the original product positioning foundation.
+> However, it must be read together with the latest architecture document:
+>
+> **`QS-OS_V3_Architecture_and_QS-WFUI_Continuation_Blueprint.md`**
+>
+> That document is the authoritative reference for the current Version 3 architecture,
+> terminology decisions (Skill, Capability Pack, Data Pack, Core Services),
+> and the QS-WFUI implementation roadmap from Sprint 13 onwards.
+> Where this document and the V3 blueprint conflict, the V3 blueprint takes precedence.
+
 **Prepared for:** QS-OS Product Strategy  
 **Prepared on:** 2026-06-15  
 **Document type:** Product positioning blueprint  
-**Status:** Strategic draft based on discussion  
+**Status:** Strategic draft based on discussion — superseded by V3 Blueprint (2026-06-18)  
 **Primary purpose:** Clarify what QS-OS is, what it is not, how it differs from existing automation and AI-agent platforms, and how the WhatsApp-to-Excel claim agent can become the first practical demonstration.
 
 ---

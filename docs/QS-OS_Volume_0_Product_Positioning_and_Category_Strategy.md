@@ -2,6 +2,18 @@
 # Volume 0 – Product Positioning and Category Strategy
 Version: 1.0
 
+> ⚠️ **SUPERSEDED NOTICE — Read alongside V3 Architecture**
+>
+> This document remains valid as the original strategic front door for QS-OS.
+> However, it must be read together with the latest architecture document:
+>
+> **`QS-OS_V3_Architecture_and_QS-WFUI_Continuation_Blueprint.md`**
+>
+> That document is the authoritative reference for the current Version 3 architecture,
+> terminology decisions (Skill, Capability Pack, Data Pack, Core Services),
+> and the QS-WFUI implementation roadmap from Sprint 13 onwards.
+> Where this document and the V3 blueprint conflict, the V3 blueprint takes precedence.
+
 > This document defines the strategic positioning of QS-OS before the technical architecture begins.
 >
 > It clarifies what QS-OS is, what it is not, how it differs from existing automation and AI-agent platforms, why the product should be positioned as an **AI Business Capability Platform**, and why the first public demonstration should remain the **BOQ-to-RFQ Workflow Builder**.
