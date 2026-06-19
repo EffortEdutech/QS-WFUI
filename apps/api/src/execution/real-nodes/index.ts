@@ -55,12 +55,4 @@ export function buildRealNodeResolver(
     // ── QS Pack ───────────────────────────────────────────────────────────────
     'qs.read_boq':          (ctx) => realReadBoq(ctx),
     'qs.clean_boq':         (ctx) => realCleanBoq(ctx),
-    'qs.classify_trade':    (ctx) => realClassifyTrade(ctx, aiService),
-    'qs.split_work_package':(ctx) => realSplitWorkPackage(ctx),
-
-    // ── Procurement Pack ──────────────────────────────────────────────────────
-    'procurement.generate_rfq': (ctx) => realGenerateRfq(ctx, libraryService),
-  };
-
-  return (nodeType: string) => realNodes[nodeType] ?? null;
-}
+    'qs.classify_trade':    (ctx) => realClassifyTrade(ctx,

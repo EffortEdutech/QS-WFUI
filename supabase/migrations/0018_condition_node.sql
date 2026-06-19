@@ -68,4 +68,4 @@ ON CONFLICT (type) DO UPDATE
     ui_schema     = EXCLUDED.ui_schema,
     outputs       = EXCLUDED.outputs,
     color         = EXCLUDED.color,
-    updated_at    = now();
+    updat

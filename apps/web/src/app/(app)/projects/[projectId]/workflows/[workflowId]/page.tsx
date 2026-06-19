@@ -390,32 +390,4 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           {showUploadPanel && organizationId && (
             <FileUploadPanel
               organizationId={organizationId}
-              projectId={projectId}
-              workflowId={workflowId}
-              onUploaded={handleFileUploaded}
-              onSkip={handleSkipUpload}
-            />
-          )}
-
-          {/* Run error banner */}
-          {runError && !showLogs && (
-            <div className="absolute bottom-4 left-4 right-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center gap-2">
-              <span>⚠ {runError}</span>
-              <button onClick={() => setRunError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
-            </div>
-          )}
-
-          {/* Execution log panel */}
-          {showLogs && (
-            <ExecutionLogPanel
-              run={runSummary}
-              logs={runLogs}
-              loading={running}
-              onClose={() => setShowLogs(false)}
-            />
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
+              proje

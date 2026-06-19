@@ -104,44 +104,4 @@ export class AiService {
 
     if (data.usage) {
       this.logger.debug(
-        `Tokens used — prompt: ${data.usage.prompt_tokens}, completion: ${data.usage.completion_tokens}, total: ${data.usage.total_tokens}`,
-      );
-    }
-
-    // ── Audit write (S14-005) — fire and forget ───────────────────────────────
-    this.writeAuditLog({
-      action:     'ai.completion',
-      service_id: 'ai-service',
-      details: {
-        model,
-        prompt_tokens:      data.usage?.prompt_tokens,
-        completion_tokens:  data.usage?.completion_tokens,
-        system_prompt_hash: systemPrompt.slice(0, 80),
-      },
-    });
-
-    return content;
-  }
-
-  /** Write to audit_log without blocking the caller */
-  private writeAuditLog(entry: {
-    action: string;
-    service_id: string;
-    details?: Record<string, unknown>;
-  }): void {
-    this.supabase.admin
-      .from('audit_log')
-      .insert({
-        event_type: entry.action,
-        summary:    entry.action,
-        service_id: entry.service_id,
-        metadata:   entry.details ?? {},
-      })
-      .then(({ error }) => {
-        if (error) this.logger.warn(`Audit write failed: ${error.message}`);
-      })
-      .catch((err: unknown) => {
-        this.logger.warn(`Audit write error: ${err instanceof Error ? err.message : String(err)}`);
-      });
-  }
-}
+        `Tokens used — prompt: ${data.usage.prompt_toke

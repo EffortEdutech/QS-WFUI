@@ -25,11 +25,18 @@ export class NodeController {
     return { success: true, data: nodes, error: null };
   }
 
-  /** GET /api/v1/nodes/packs — list all packs */
+  /** GET /api/v1/nodes/packs — list all packs with skill count */
   @Get('packs')
   async findAllPacks() {
     const packs = await this.nodeService.findAllPacks();
     return { success: true, data: packs, error: null };
+  }
+
+  /** GET /api/v1/nodes/search?q= — server-side skill search (Sprint 15) */
+  @Get('search')
+  async search(@Query('q') q?: string) {
+    const results = await this.nodeService.search(q ?? '');
+    return { success: true, data: results, error: null };
   }
 
   /** GET /api/v1/nodes/:type — get one node definition */
@@ -47,12 +54,4 @@ export class NodeController {
   }
 
   /** POST /api/v1/nodes/:type/validate-config */
-  @Post(':type/validate-config')
-  async validateConfig(
-    @Param('type') type: string,
-    @Body() body: { config: Record<string, unknown> },
-  ) {
-    const result = await this.nodeService.validateConfig(type, body.config ?? {});
-    return { success: true, data: result, error: null };
-  }
-}
+  @Post(':type/valida
