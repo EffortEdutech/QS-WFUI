@@ -33,7 +33,7 @@ import type {
   WorkflowNodeInstance,
   WorkflowConnection,
   SkillMode,
-} from '@qsos/shared-types';
+} from '@lados/shared-types';
 import { apiClient } from '@/lib/api/client';
 import PropertyPanel from './PropertyPanel';
 import { ConditionNode } from './ConditionNode';

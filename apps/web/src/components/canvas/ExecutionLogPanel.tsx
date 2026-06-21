@@ -12,7 +12,8 @@
  * Sprint 16: expandable output inspector per node row (S16-003)
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { apiClient } from '@/lib/api/client';
 
 interface RfqArtifact {
   trade: string;
@@ -101,6 +102,7 @@ const STATUS_STYLES: Record<string, { dot: string; badge: string }> = {
   completed: { dot: 'bg-green-500', badge: 'bg-green-100 text-green-700' },
   failed:    { dot: 'bg-red-500',   badge: 'bg-red-100 text-red-700' },
   running:   { dot: 'bg-blue-500 animate-pulse', badge: 'bg-blue-100 text-blue-700' },
+  paused:    { dot: 'bg-amber-400', badge: 'bg-amber-100 text-amber-700' },
   skipped:   { dot: 'bg-gray-300',  badge: 'bg-gray-100 text-gray-500' },
   pending:   { dot: 'bg-gray-300',  badge: 'bg-gray-100 text-gray-500' },
   waiting:   { dot: 'bg-amber-400', badge: 'bg-amber-100 text-amber-700' },
@@ -481,11 +483,97 @@ function ArtifactSection({ artifacts, runId }: { artifacts: RfqArtifact[]; runId
   );
 }
 
+// ── Paused: inline approve / reject banner ─────────────────────────────────
+
+interface PendingTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+}
+
+function PausedApprovalBanner({ runId, onDecided }: { runId: string; onDecided: () => void }) {
+  const [tasks, setTasks]       = useState<PendingTask[]>([]);
+  const [comments, setComments] = useState('');
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  const loadTasks = useCallback(async () => {
+    const res = await apiClient.get<PendingTask[]>(`/approvals/run/${runId}`);
+    if (!res.error) setTasks((res.data ?? []).filter((t) => t.status === 'pending'));
+  }, [runId]);
+
+  useEffect(() => { void loadTasks(); }, [loadTasks]);
+
+  async function decide(taskId: string, decision: 'approved' | 'rejected') {
+    setBusy(true);
+    setError(null);
+    const res = await apiClient.post<unknown>(`/approvals/${taskId}/decide`, { decision, comments });
+    if (res.error) {
+      setError(typeof res.error === 'string' ? res.error : 'Decision failed');
+    } else {
+      onDecided();
+    }
+    setBusy(false);
+  }
+
+  if (tasks.length === 0) return null;
+
+  const task = tasks[0];  // Show the first pending task
+
+  return (
+    <div className="mx-4 my-3 rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+      <div className="flex items-start gap-2">
+        <span className="text-amber-500 text-lg leading-none mt-0.5">⏸</span>
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Awaiting human approval</p>
+          <p className="text-xs text-amber-700 mt-0.5">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-amber-600 mt-0.5">{task.description}</p>
+          )}
+        </div>
+      </div>
+
+      <textarea
+        value={comments}
+        onChange={(e) => setComments(e.target.value)}
+        placeholder="Optional comments…"
+        rows={2}
+        maxLength={1000}
+        className="w-full text-xs border border-amber-200 bg-white rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+      />
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => void decide(task.id, 'approved')}
+          disabled={busy}
+          className="flex-1 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+        >
+          {busy ? '…' : '✓ Approve'}
+        </button>
+        <button
+          onClick={() => void decide(task.id, 'rejected')}
+          disabled={busy}
+          className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50"
+        >
+          {busy ? '…' : '✗ Reject'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main panel ─────────────────────────────────────────────────────────────
+
 export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props) {
   const runStatusStyle = run?.status === 'completed'
     ? 'text-green-700 bg-green-50 border-green-200'
     : run?.status === 'failed'
     ? 'text-red-700 bg-red-50 border-red-200'
+    : run?.status === 'paused'
+    ? 'text-amber-700 bg-amber-50 border-amber-200'
     : 'text-blue-700 bg-blue-50 border-blue-200';
 
   const artifacts = extractArtifacts(logs);
@@ -530,6 +618,14 @@ export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props
           <NodeLogRow key={log.nodeId ?? String(i)} log={log} />
         ))}
       </div>
+
+      {/* Phase 1: inline approve / reject when run is paused */}
+      {run?.status === 'paused' && run.runId && (
+        <PausedApprovalBanner
+          runId={run.runId}
+          onDecided={onClose}
+        />
+      )}
 
       {/* Artifact downloads + distribute (Sprint 9 / Sprint 17) */}
       <ArtifactSection artifacts={artifacts} runId={run?.runId} />

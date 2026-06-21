@@ -12,8 +12,10 @@ import {
   Get,
   Param,
   Body,
+  Query,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseJwtGuard as JwtAuthGuard } from '../common/guards/supabase-jwt.guard';
 import { ExecutionService } from './execution.service';
@@ -63,6 +65,37 @@ export class ExecutionController {
   ) {
     const logs = await this.executionService.getRunLogs(runId, req.user.id);
     return { success: true, data: logs };
+  }
+
+  /**
+   * Execute a single pack node directly on a resource (inline action).
+   *
+   * Called by the /resources UI when a non-state.change action button is clicked.
+   * No workflow record is required — the node is resolved from the pack registry
+   * and executed with a minimal NodeContext.
+   *
+   * POST /resources/:id/execute-action?organizationId=<orgId>
+   * Body: { node: "contractor.dispatch_trip", inputs: { jobId, vehicleId, driverId } }
+   */
+  @Post('resources/:id/execute-action')
+  async executeResourceAction(
+    @Param('id') resourceId: string,
+    @Body() body: { node: string; inputs?: Record<string, unknown> },
+    @Query('organizationId') orgId: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    if (!body?.node) throw new BadRequestException('node is required');
+    if (!orgId)      throw new BadRequestException('organizationId query param is required');
+
+    const result = await this.executionService.executeNodeAction(
+      body.node,
+      orgId,
+      resourceId,
+      body.inputs ?? {},
+      req.user.id,
+    );
+
+    return { success: result.status !== 'failure', data: result };
   }
 
   /**

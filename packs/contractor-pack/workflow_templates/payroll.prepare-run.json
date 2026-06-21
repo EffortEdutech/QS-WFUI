@@ -1,0 +1,63 @@
+{
+  "id": "contractor.payroll.prepare-run",
+  "name": "Prepare Payroll Run",
+  "description": "Computes gross pay for each employee (daily rate × days worked) and creates a PayrollRun resource in draft state, ready for owner review. Notifies owner to review.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "payroll", "hr"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Period-End Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "periodStart", "label": "Period Start", "type": "string", "required": true,  "ui:widget": "date" },
+        { "key": "periodEnd",   "label": "Period End",   "type": "string", "required": true,  "ui:widget": "date" },
+        { "key": "employees",   "label": "Employees",   "type": "array",  "required": true,
+          "ui:widget": "employee-builder",
+          "ui:schema": [
+            { "key": "employeeId", "label": "Employee ID",     "type": "string" },
+            { "key": "name",       "label": "Name",            "type": "string" },
+            { "key": "dailyRate",  "label": "Daily Rate (MYR)", "type": "number" },
+            { "key": "daysWorked", "label": "Days Worked",     "type": "number" }
+          ]
+        },
+        { "key": "notes", "label": "Notes", "type": "string", "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.prepare_payroll_run",
+      "label": "Prepare Payroll Run",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Owner — Review Required",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "Payroll Run Ready for Review",
+        "body": "Payroll run prepared. Total gross: MYR {{node-1.outputs.totalGross}} for {{node-1.outputs.employeeCount}} employees. Please review and approve."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "payrollRunId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

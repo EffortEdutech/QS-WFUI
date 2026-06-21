@@ -12,12 +12,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
+import { SecurityEngineService, OrgRole } from '../security/security.service';
 import type { CreateSupplierDto } from './dto/create-supplier.dto';
 import type { UpdateSupplierDto } from './dto/update-supplier.dto';
 
 @Injectable()
 export class SupplierService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly security: SecurityEngineService,
+  ) {}
 
   // ── List ───────────────────────────────────────────────────────────────────
 
@@ -125,20 +129,15 @@ export class SupplierService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  /** Phase 6: delegates to SecurityEngineService — single DB call for role lookup */
   private async assertMembership(
     organizationId: string,
     userId: string,
-    roles?: string[],
-  ) {
-    const { data: member } = await this.supabase.admin
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', organizationId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!member) throw new NotFoundException('Organization not found or access denied');
-    if (roles && !roles.includes(member.role as string)) {
+    roles?: OrgRole[],
+  ): Promise<void> {
+    const userRole = await this.security.getRole(userId, organizationId);
+    if (!userRole) throw new NotFoundException('Organization not found or access denied');
+    if (roles && !roles.includes(userRole)) {
       throw new ForbiddenException(`Requires role: ${roles.join(' or ')}`);
     }
   }

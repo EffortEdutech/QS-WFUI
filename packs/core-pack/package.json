@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/core-pack",
+  "name": "@lados/core-pack",
   "version": "0.1.0",
   "description": "QS-OS core pack — Start, End, Branch, Merge, Delay, Webhook nodes",
   "main": "./dist/index.js",
@@ -16,10 +16,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/node-sdk": "workspace:*",
-    "@qsos/pack-sdk": "workspace:*"
+    "@lados/execution-engine": "workspace:*",
+    "@lados/node-sdk": "workspace:*",
+    "@lados/pack-sdk": "workspace:*",
+    "@supabase/supabase-js": "^2.45.4"
   },
   "devDependencies": {
+    "@types/node": "^20.16.10",
     "typescript": "^5.4.0"
   }
 }

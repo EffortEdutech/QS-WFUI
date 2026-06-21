@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/node-sdk",
+  "name": "@lados/node-sdk",
   "version": "0.1.0",
   "description": "QS Node SDK — base classes and interfaces for building QS-OS nodes",
   "main": "./dist/index.js",
@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/shared-types": "workspace:*"
+    "@lados/shared-types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

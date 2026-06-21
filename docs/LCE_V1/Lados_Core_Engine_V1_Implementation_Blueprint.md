@@ -258,6 +258,79 @@ This change does not alter the `WorkflowRunner` interface. It changes how the AP
 
 The existing QS pack (`qs.read_boq`, `qs.classify_trade`, etc.) is LEOS-adjacent scope. It should be maintained but not expanded until Contractor Edition proves the engine. New QS-specific resources, workflows, and nodes belong in a future QS/LEOS pack, not in LCE core.
 
+### 3.10 Platform UI Is Generic — Solutions Do Not Own the Sidebar
+
+**This is a non-negotiable architectural principle.**
+
+The Lados platform UI must remain industry-agnostic. The platform navigation contains only engine-level capabilities:
+
+```
+Dashboard
+Projects
+Resources      ← generic, type-filterable
+Workflows      ← all workflows regardless of solution
+Approvals
+Packs
+Marketplace
+Settings
+```
+
+A solution (Contractor Edition, LEOS, JKR) is **not** a fork of the platform. It is:
+
+1. A set of packs installed on the engine (contributing nodes, resource types, state machines, workflow templates)
+2. Accessed via the generic **Projects**, **Workflows**, and **Resources** views — pre-filtered by resource type or workflow tag
+3. Optionally: a pack may register nav extensions in its manifest, which the platform renders dynamically — but this must go through the manifest, not through hardcoded `layout.tsx` changes
+
+**What is explicitly forbidden:**
+
+- Adding industry-specific pages (`/jobs`, `/operations`, `/fleet`, `/drivers`) directly to the platform `layout.tsx`
+- Creating dedicated pages that belong to a solution's domain model inside `apps/web`
+- Using the platform sidebar as a container for solution branding
+
+**Consequence:** Any page or sidebar item added for a specific industry must be removed from the platform shell and replaced with either (a) a generic Resources/Projects view filtered by type, or (b) a dynamically registered pack nav contribution.
+
+### 3.11 Node Execution Has Three Distinct Contexts
+
+A node's `input_schema` is resolved differently depending on how the workflow is triggered. The platform must handle all three without requiring node authors to write context-specific logic.
+
+**Context 1 — Manual Run (operator-initiated)**
+
+A user clicks "Run Workflow." The platform reads `input_schema` from the trigger node and surfaces a modal before execution begins. The operator fills in fields (customer, date, file upload) and confirms. The values are injected into `ctx.inputs` for the first node. Downstream nodes receive outputs via the normal node-to-node wiring.
+
+**Context 2 — Automated Run (cron, webhook, event-triggered)**
+
+No human is present. The triggering event payload (from a cron schedule, an incoming webhook, or an Event Bus event) is automatically mapped into `ctx.inputs`. The platform matches event payload keys to `input_schema` field names. Unmatched required fields cause the run to fail with a `MISSING_INPUT` error.
+
+**Context 3 — AI Prompt Nodes**
+
+Two distinct schemas serve two distinct purposes:
+- `config_schema` → static system instructions, persona, and constraints. Set once on the canvas. Baked into the workflow JSON. Never changes per-run.
+- `input_schema` → the dynamic content: the document text, the email body, the image URL. Changes on every run. Injected at runtime.
+
+This separation means AI nodes remain canvas-configurable for their reasoning instructions while consuming fresh data on every execution — without any special-casing in the runner.
+
+**Implementation rule:** `WorkflowRunner` is not aware of trigger context. The API layer resolves `ctx.inputs` from the trigger source (modal form POST, event payload, cron job context) before handing off to the runner. The runner always sees a fully-populated `ctx.inputs` object.
+
+### 3.12 Domain Packs and Solution Profiles Are Different Artifacts
+
+**Domain Pack** — a code-based technical artifact built by the platform team or a third-party developer. Ships as a workspace package (`@lados/contractor-pack`). Contains: nodes (TypeScript), resource type definitions, state machine definitions, workflow templates (JSON), and pack manifest. Installed via the Pack Installer. Versioned and dependency-managed.
+
+**Solution Profile** — a configuration-driven view managed by administrators or resellers through the admin UI. No code required. Selects which nodes from installed Domain Packs are visible to end users, sets default workflow templates, pre-configures resource type view schemas, and restricts available state transitions. Multiple Solution Profiles can coexist on one Lados instance (e.g., "Small Tipper Operator" and "General Contractor" both using `@lados/contractor-pack` but exposing different node subsets).
+
+Building the Solution Profile admin panel is explicitly out of scope for LCE V1. The engine must reserve space for it:
+- Pack manifest node list is the source of truth for available nodes (already implemented)
+- Future: `solution_profiles` table, `SolutionProfileModule`, and admin UI
+
+### 3.13 Workflow Artifacts Are a Core Platform Capability
+
+Artifacts are named, project-scoped data stores that persist between workflow runs. They are the mechanism by which one workflow passes structured output to another within the same project.
+
+A workflow that creates a Job writes the `jobId` to an artifact. A downstream workflow that dispatches trips reads that artifact to get the `jobId` — without needing a hardcoded resource ID.
+
+This makes workflows composable without tight coupling.
+
+Artifacts are a **platform** capability (engine-level), not a solution feature. Every solution benefits from them.
+
 ---
 
 ## 4. Engine Modules
@@ -295,10 +368,73 @@ The existing QS pack (`qs.read_boq`, `qs.classify_trade`, etc.) is LEOS-adjacent
 - `registered_nodes` table in Supabase
 - Node palette and property panel in the canvas
 
+**NodeManifest schema (locked):**
+
+Every node declares three schemas. All three use JSON Schema draft-07.
+
+```typescript
+interface NodeManifest {
+  type:           string           // unique identifier: 'contractor.create_job'
+  displayName:    string
+  description:    string
+  category:       string
+  pack:           string           // owning pack ID: 'lados.contractor-pack'
+
+  config_schema:  JSONSchema       // design-time — set on canvas, baked into workflow JSON
+                                   // drives the PropertyPanel in the canvas editor
+                                   // available as ctx.config at runtime
+
+  input_schema:   JSONSchema       // runtime — resolved at trigger time (see Section 3.11)
+                                   // manual run: prompted via modal before execution
+                                   // automated run: mapped from event/webhook payload
+                                   // AI nodes: the dynamic content (document, message, file)
+                                   // available as ctx.inputs at runtime
+
+  output_schema:  JSONSchema       // what this node produces for downstream nodes
+                                   // used for canvas port type validation
+                                   // available as ctx.outputs after execution
+}
+```
+
+**UI widget vocabulary (locked):**
+
+The `ui:widget` annotation in `input_schema` and `config_schema` controls how the PropertyPanel and the trigger modal render each field.
+
+| Widget | JSON Schema type | Use case |
+| --- | --- | --- |
+| `text` | string | Job title, notes, short labels |
+| `textarea` | string | Description, AI prompt injection, long text |
+| `number` | number | Odometer reading, quantity, amount |
+| `date` | string (ISO 8601) | Scheduled date, deadline |
+| `select` | string (enum) | Fixed options declared in schema |
+| `toggle` | boolean | Yes/No flags, enable/disable |
+| `file-upload` | string (url) | Upload a file; returns Supabase Storage URL |
+| `resource-picker` | string (uuid) | Select an existing resource by type |
+| `json` | object | Freeform JSON for advanced config |
+
+**`resource-picker` specification:**
+
+```json
+{
+  "vehicleId": {
+    "type": "string",
+    "title": "Vehicle",
+    "ui:widget": "resource-picker",
+    "ui:resourceType": "vehicle",
+    "ui:displayField": "name"
+  }
+}
+```
+
+The platform queries `GET /resources?type=vehicle&organizationId=...` to populate the picker. This is the explicit binding between the Node System and the Resource Engine at the UI level. Every resource reference in a contractor workflow uses this widget — no free-text UUIDs.
+
 **What needs work:**
 - Node implementations must move from `api/src/execution/real-nodes/` into their respective packs (`@lados/core-pack/src/nodes/`, `@lados/qs-pack/src/nodes/`, etc.)
 - The node resolver in `ExecutionService` must dynamically load from installed packs, not from a hardcoded import list
 - Universal node catalog (Create Resource, Update Resource, Change State, Emit Event, etc.) must be added to core pack
+- `input_schema` must be added to all existing node manifests (currently only `config_schema` exists)
+- PropertyPanel must render `input_schema` widgets alongside `config_schema` widgets (distinguished by a "Runtime Inputs" vs. "Configuration" section header)
+- Workflow trigger modal must read `input_schema` from the trigger node and prompt before execution
 
 **Node categories and ownership:**
 
@@ -336,24 +472,79 @@ The existing QS pack (`qs.read_boq`, `qs.classify_trade`, etc.) is LEOS-adjacent
 - Pack dependency resolver (Foundation must be installed before Fleet, etc.)
 - Migration runner per pack (each pack owns its schema migrations)
 
-**Pack manifest must declare:**
+**Pack taxonomy (locked — see Section 3.12):**
+
+| Type | Built by | Delivered as | Contains |
+| --- | --- | --- | --- |
+| **Domain Pack** | Platform team / developer | npm/pnpm workspace package | Nodes, resource types, state machines, workflow templates, migrations |
+| **Solution Profile** | Admin / reseller | DB configuration (no code) | Node subset selection, default templates, view overrides |
+
+Solution Profiles are deferred to a later phase. The engine architecture must accommodate them without requiring refactoring.
+
+**Domain Pack manifest must declare:**
 
 ```json
 {
-  "packKey": "fleet-pack",
-  "name": "Fleet Pack",
-  "version": "1.0.0",
+  "packKey":              "contractor-pack",
+  "name":                 "Contractor Edition Pack",
+  "version":             "0.1.0",
   "engineCompatibility": ">=1.0.0 <2.0.0",
-  "dependencies": ["foundation-pack"],
-  "resources": ["Vehicle", "Driver"],
-  "nodes": ["fleet.assign_vehicle", "fleet.record_fuel", "fleet.maintenance_alert"],
-  "workflows": ["fleet.daily_dispatch", "fleet.maintenance_review"],
-  "permissions": ["read:files", "write:database"],
-  "events": ["VehicleAssigned", "FuelReceiptUploaded", "MaintenanceDue"],
-  "states": ["vehicle_lifecycle"],
-  "migrations": ["0001_create_fleet_resources.sql"]
+  "dependencies":        ["foundation-pack"],
+
+  "resources": [
+    {
+      "type": "job",
+      "displayName": "Job",
+      "views": {
+        "list": {
+          "primaryField":   "name",
+          "secondaryField": "data.scheduledDate",
+          "badgeField":     "state",
+          "mobileLayout":   "card"
+        },
+        "inlineActions": [
+          { "label": "Dispatch Trip", "node": "contractor.dispatch_trip",  "visibleInStates": ["active"] },
+          { "label": "Generate Invoice", "node": "contractor.generate_invoice", "visibleInStates": ["active", "completed"] }
+        ]
+      }
+    },
+    {
+      "type": "trip",
+      "views": {
+        "list": {
+          "primaryField":   "name",
+          "secondaryField": "data.driverId",
+          "badgeField":     "state",
+          "mobileLayout":   "card"
+        },
+        "inlineActions": [
+          { "label": "Mark Complete", "node": "contractor.complete_trip", "visibleInStates": ["pending", "in_progress"] }
+        ]
+      }
+    }
+  ],
+
+  "nodes": [
+    "contractor.create_job",
+    "contractor.dispatch_trip",
+    "contractor.complete_trip",
+    "contractor.upload_fuel_receipt",
+    "contractor.generate_invoice"
+  ],
+
+  "workflowTemplates": [
+    "workflow_templates/job-creation.json",
+    "workflow_templates/trip-dispatch.json",
+    "workflow_templates/invoice-generation.json"
+  ],
+
+  "events":     ["JobCreated", "TripDispatched", "TripCompleted", "FuelReceiptUploaded", "InvoiceGenerated"],
+  "states":     ["job_lifecycle", "trip_lifecycle", "fuel_receipt_lifecycle", "invoice_lifecycle"],
+  "migrations": ["0032_contractor_resources.sql"]
 }
 ```
+
+The `views` block under each resource type is the type-aware rendering configuration (Section 3.10). The platform reads this at runtime to generate mobile-first card layouts and contextual inline actions — no hardcoded solution pages required.
 
 **Acceptance criteria:**
 - A pack can be installed at runtime from a manifest
@@ -570,7 +761,66 @@ AI Runtime:
 
 Foundation Pack is the mandatory base. Every other pack declares a dependency on it.
 
-### 4.10 Internal Registry
+### 4.10 Workflow Artifacts
+
+**Current state:** `project.save_artifact` and `project.read_artifact` exist in the old `real-nodes/` directory but are not formally specified and have no backing DB table. They are effectively stub placeholders.
+
+**Design:**
+
+Artifacts are named, project-scoped data stores that persist across workflow run boundaries. They are the primary mechanism for workflow-to-workflow data passing within a project — without requiring either workflow to know the other's internal resource IDs.
+
+```
+Workflow A: Job Creation
+  └── contractor.create_job → writes { jobId: "uuid-xxx" } to artifact "current_job"
+
+Workflow B: Trip Dispatch (runs later, triggered by owner)
+  └── artifact.read("current_job") → gets { jobId: "uuid-xxx" }
+  └── contractor.dispatch_trip(jobId: "uuid-xxx", vehicleId: ..., driverId: ...)
+```
+
+**DB schema:**
+
+```sql
+create table lados_artifacts (
+  id              uuid primary key default gen_random_uuid(),
+  organisation_id uuid not null references organisations(id),
+  project_id      uuid not null references projects(id),
+  workflow_id     uuid references workflows(id),   -- last workflow that wrote this key
+  run_id          uuid references execution_runs(id), -- last run that wrote this key
+  artifact_key    text not null,                   -- named key, scoped to project
+  artifact_type   text not null default 'json',    -- 'json' | 'text' | 'file'
+  data            jsonb,                           -- for json and text artifacts
+  file_url        text,                            -- for file artifacts
+  version         integer not null default 1,      -- increments on each write
+  created_by      uuid references auth.users(id),
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  unique (project_id, artifact_key)               -- one live value per key per project
+);
+```
+
+**NodeContext extension:**
+
+`ctx.projectId` must be populated when a workflow is run within a project context. This is the scope key for artifact reads and writes.
+
+**Nodes (in core-pack or foundation-pack):**
+
+| Node | Inputs | Outputs | Description |
+| --- | --- | --- | --- |
+| `artifact.write` | key, value, type? | artifactId, version | Writes/overwrites artifact at key within ctx.projectId |
+| `artifact.read` | key, required? | value, version, found | Reads artifact at key; fails or returns null if not found |
+| `artifact.list` | prefix? | artifacts[] | Lists artifact keys in the current project |
+
+**History:** writes are upserts (update + version increment). A separate `lados_artifact_versions` table (future) can store full version history.
+
+**Acceptance criteria:**
+- A workflow can write structured data to a named artifact key
+- A subsequent workflow in the same project can read that artifact without knowing the first workflow's run ID
+- Artifact reads fail gracefully when the key does not exist (configurable: fail vs. return null)
+- Artifact writes emit an `ArtifactWritten` event on the Event Bus
+- `ctx.projectId` is available in NodeContext when a workflow is run from a project
+
+### 4.11 Internal Registry
 
 **Current state:** `packs` and `registered_nodes` tables exist. Pack browser UI at `/packs`. No install/upgrade flow.
 
@@ -599,7 +849,28 @@ Foundation Pack is the mandatory base. Every other pack declares a dependency on
 - Pack registry UI: install, upgrade, enable/disable
 - Dashboard: solution-configurable metric widgets
 
-**Principle:** screens are the last expression. UI surfaces must be driven by resource types and workflow definitions, not hardcoded to one solution. A pack should be able to contribute a nav item and a set of views without forking the app shell.
+**Platform navigation (fixed, engine-level only):**
+
+```
+Dashboard   — project activity, metrics widgets
+Projects    — all projects in the organisation
+Resources   — generic resource browser, filterable by type, state, project
+Workflows   — all workflows; create, edit, trigger runs
+Approvals   — pending approval tasks for the logged-in user
+Packs       — installed packs, enable/disable
+Marketplace — available packs and solutions
+Settings    — org, users, roles, API keys, services
+```
+
+**What solutions contribute (via pack manifest, not via layout.tsx):**
+
+- Workflow templates pre-configured for industry use cases
+- Resource type schemas and state machine definitions
+- Dashboard widget configurations
+- Node palettes filtered to the solution's relevant nodes
+- (Future) Dynamically registered nav extensions declared in pack manifest
+
+**Principle:** screens are the last expression. The platform UI is universal — it renders resources and workflows regardless of their type or industry. A Contractor user sees their jobs and trips by navigating to Resources (filtered by type=job or type=trip), not by accessing a hardcoded `/jobs` page. This means the generic Resources page must be good enough to serve all solutions.
 
 ---
 
@@ -609,6 +880,8 @@ Foundation Pack is the mandatory base. Every other pack declares a dependency on
 
 Contractor Edition is the first LCE solution. It validates that the engine can support a real small business without ERP complexity.
 
+**Critical framing:** Contractor Edition is built ON Lados, not INTO Lados. The platform does not change for Contractor Edition. What changes is the packs installed, the workflow templates available, and the resource types registered. A user running Contractor Edition and a user running LEOS see the same platform UI — they see different resource types, different workflow templates, and different installed packs.
+
 Minimum viable operation:
 
 - 1 owner
@@ -617,20 +890,22 @@ Minimum viable operation:
 - 1 backhoe
 - 1 optional admin
 
-### 5.2 Navigation
+### 5.2 How Contractor Edition Users Navigate Lados
+
+Contractor Edition users use the same platform navigation as everyone else:
 
 ```
-Lados — Contractor Edition
-  Dashboard
-  Jobs
-  Fleet
-  Drivers
-  Equipment
-  Customers
-  Finance
-  Documents
-  AI Assistant
+Dashboard      — shows contractor-relevant metrics (trips today, pending invoices, margin estimate)
+Projects       — each contract or client engagement is a Project
+Resources      — filtered to contractor types: Customer, Job, Trip, Vehicle, Driver, FuelReceipt, Invoice
+Workflows      — contractor-pack workflow templates are available here
+Approvals      — fuel receipt approvals, invoice approvals, payroll approvals
+Packs          — shows Contractor Pack and Foundation Pack as installed
 ```
+
+**There is no `/jobs` page. There is no `/operations` page. There is no `/fleet` page.** These are accessed via `Resources?type=job`, `Resources?type=trip`, `Resources?type=vehicle`. The generic Resources view must be powerful enough to serve as the operational view for any resource type — with state filters, search, and inline actions appropriate to the type.
+
+The conceptual "Contractor Edition navigation" (Jobs, Fleet, Drivers, Equipment, etc.) describes the **resource types and workflow domains** the contractor-pack contributes — it does NOT describe hardcoded platform pages. If these named views are ever needed, they are delivered as dynamically registered pack nav contributions declared in the pack manifest, not as changes to `apps/web/src/app/(app)/layout.tsx`.
 
 ### 5.3 Required Packs
 
@@ -869,64 +1144,145 @@ The phases below replace the original Phase 0 through 12 sequence. They are reor
 
 ### Phase 7: Foundation Pack
 
-**Status:** Not started as an installable pack.
+**Status:** In progress (initial implementation complete).
 
 **Goal:** Package universal capabilities as the mandatory base pack.
 
-**Tasks:**
+**Completed (Phase 7 initial):**
 
-- Create `@lados/foundation-pack` with its pack manifest
-- Register Foundation resource types: User, Role, Permission, Team, File, Attachment, Comment, Notification, Approval, AuditLog, Tag
-- Register Foundation events: UserCreated, FileUploaded, ApprovalRequested, ApprovalGranted, etc.
-- Register Foundation nodes: Create Resource, Update Resource, Find Resource, Archive Resource, Change State, Emit Event, Assign User, Upload File, Request Approval, Approve, Reject, Send Notification
-- Move NotificationModule capabilities into Foundation Pack
-- Move approval task logic into Foundation Pack
+- `@lados/foundation-pack` created at `packs/foundation-pack/` with pack manifest
+- Foundation resource types and event type catalogue exported from `src/types.ts`
+- `foundation.send_notification` node — wraps NotificationService; moves notification capability into Foundation layer
+- `foundation.request_approval` node — canonical human approval gate; supersedes `core.human_approval` (kept for backward compat); uses `IApprovalTaskService` / `ApprovalTaskCreator` to avoid circular dep with `ExecutionService`
+- `foundation.assign_user` node — assigns a user to a resource via `IAssignableResourceService`
+- `ApprovalTaskCreator` service extracted from `ApprovalService` into `ApprovalCoreModule` to break `ApprovalModule ↔ ExecutionModule` circular dependency
+- `buildRealNodeResolver` updated — foundation-pack resolver runs first (highest priority)
+- `@lados/foundation-pack` added to `apps/api/package.json`
+
+**Remaining (Phase 9+):**
+
+- `foundation.upload_file` — attach a stored file to a resource (needs FileService.uploadFromBase64)
+- `foundation.add_comment` — needs `foundation_comments` table migration
+- `foundation.add_tag` — needs `foundation_tags` table migration
+- `foundation.archive_resource` — soft-delete a resource
 
 **Acceptance:**
-- Other packs depend on Foundation instead of reimplementing users, files, approvals, notifications, and AI context
-- Foundation permissions are enforced before resource, workflow, node, or state actions execute
+- ✅ Other packs depend on Foundation instead of reimplementing approvals and notifications
+- ✅ `foundation.request_approval` is the canonical approval gate for new workflows
+- ✅ `foundation.send_notification` is the canonical notification node
+- ⏳ Foundation permissions enforced before resource/workflow/node actions — deferred to Phase 8 (Pack Installer)
 
 ### Phase 8: Pack Installer and Registry
 
-**Status:** Pack manifests defined. SQL seeding only. No runtime installer.
+**Status:** ✅ COMPLETE (2026-06-21)
 
 **Goal:** Make packs installable at runtime without SQL migration hand-editing.
 
-**Tasks:**
+**Delivered:**
 
-- Implement `PackInstaller` service: accept a manifest, validate dependencies, run migrations, register nodes
-- Implement `PackRegistry` service: list installed packs, check compatibility, resolve dependencies
-- Implement pack enable/disable lifecycle with state persistence
-- Add pack upgrade flow: validate compatibility, run incremental migrations
-- Update Pack Registry UI at `/packs` to support install, upgrade, and disable actions
+- `PackRegistryService` — `getAll()`, `findById()`, `isActive()`, `canEnable()` / `canDisable()` (dependency graph validation), `getPackNodes()`
+- `PackInstallerService` — `OnModuleInit` auto-sync on startup, `COMPILED_PACKS` static registry maps workspace manifests to DB IDs (`qsos.*` legacy + `lados.*` new), `enablePack()` / `disablePack()` cascades to `registered_nodes`
+- `PackController` — `GET /packs`, `GET /packs/:id`, `POST /packs/sync`, `PATCH /packs/:id/enable`, `PATCH /packs/:id/disable` (requires `workflow.publish` permission)
+- `PackModule` added to `AppModule`
+- Migration 0031 — `packs` table upgrades (`dependencies`, `installed_at`, `status`), seeds `lados.foundation-pack` row, registers foundation nodes in `registered_nodes`
+- `/packs` UI — redesigned with Sync button, Enable/Disable toggles per card, status badges (Active / Disabled / Error), stats bar
+- `/packs/[packId]` UI — updated to use `GET /packs/:id`; shows real-time status badge, dependency chips, per-node `is_enabled` state
 
-**Acceptance:**
-- Foundation, Job, Fleet, Equipment, Finance, HR, Document, Dashboard, and AI packs can be installed and managed without touching SQL directly
-- Broken dependencies are blocked
-
-### Phase 9: Contractor Edition Build
-
-**Status:** Not started as an LCE solution (existing QS features are a different scope).
-
-**Goal:** Build the first real LCE-powered solution end-to-end.
-
-**Tasks:**
-
-- Implement Job, Fleet, Equipment, Finance, HR, Dashboard, and AI packs for Contractor Edition
-- Implement all Contractor Edition resources through the Resource Engine
-- Implement all Contractor Edition workflows through the Workflow Engine
-- Implement driver mobile-friendly trip recording flow
-- Implement owner assignment and dispatch flow
-- Implement fuel receipt upload with AI extraction and human review
-- Implement maintenance reminder and service job workflow
-- Implement invoice generation from completed trips and equipment hours
-- Implement payroll draft calculation with approval flow
-- Implement owner dashboard with trips, revenue, fuel, and margin widgets
-- Implement AI owner assistant grounded in LCE resource and event context
+**Scope boundary (deferred to Phase 11 — Registry):**
+- Dynamic pack install from URL/registry without rebuild
+- Pack upgrade flow with incremental migrations
+- Fine-grained node-level enable/disable from UI
 
 **Acceptance:**
-- Small contractor can run daily operations from one workspace
-- All Contractor Edition acceptance criteria in Section 5.6 pass
+- ✅ Compiled packs auto-sync to DB on API startup
+- ✅ Broken dependencies are blocked (canEnable/canDisable guards)
+- ✅ Enable/disable cascades to all pack nodes
+- ✅ UI reflects live pack status without page refresh
+
+### Phase 9: Contractor Edition Pack Build
+
+**Status:** ✅ COMPLETE — including Phase 9 Correction (2026-06-21)
+
+**Goal:** Build the contractor-pack — the first real domain pack on LCE — providing nodes, resource types, and state machines for the Contractor Edition solution. Includes a mid-phase architectural correction to remove solution-specific pages and replace them with the generic Resources engine.
+
+**Delivered — contractor-pack (initial build):**
+
+- Migration 0032 — `lados_resources.type` CHECK expanded to include all Contractor Edition types: `customer`, `driver`, `vehicle`, `equipment`, `fuel_receipt`, `maintenance_record`, `expense` (plus `trip`, `invoice`, `payment` which were in TypeScript but missing from DB); state machines seeded for all new types
+- `@lados/contractor-pack` — TypeScript workspace pack with 5 workflow nodes:
+  - `contractor.create_job` — creates Job resource with customer link
+  - `contractor.dispatch_trip` — creates Trip under a Job, assigns vehicle + driver
+  - `contractor.complete_trip` — transitions Trip to completed, records odometer
+  - `contractor.upload_fuel_receipt` — creates FuelReceipt resource in `pending_review`; AI extraction advisory + human approval required (guardrail enforced)
+  - `contractor.generate_invoice` — creates Invoice from completed trips; lands in `draft`, must be advanced to `pending_approval` by human (guardrail enforced)
+- API wiring — `@lados/contractor-pack` added to `apps/api`, `buildRealNodeResolver` wired via `makeContractorResourceAdapter`, `PackInstallerService.COMPILED_PACKS` updated, `ResourceType` and `RESOURCE_TYPES` DTO expanded
+
+**AI guardrails (non-negotiable):**
+- `contractor.upload_fuel_receipt`: AI extraction is advisory. No AI-extracted values may be posted to finance without owner/admin approval.
+- `contractor.generate_invoice`: Invoice cannot be sent without owner/admin human approval. No AI output may advance invoice past `pending_approval`.
+
+**Delivered — Phase 9 Correction (architectural fix):**
+
+The initial build violated §3.10 (Platform UI Is Generic). The following corrections were applied:
+
+| Wrong item | Corrected |
+| --- | --- |
+| `apps/web/src/app/(app)/jobs/page.tsx` | Replaced with `redirect('/resources?type=job')` |
+| `apps/web/src/app/(app)/operations/page.tsx` | Replaced with `redirect('/resources?type=trip')` |
+| Sidebar: `/jobs`, `/operations` | Removed. `/resources` added to sidebar nav. |
+
+**Delivered — Workflow Artifacts (Section 4.10):**
+- Migration 0033 — `lados_artifacts` table: project-scoped, versioned, key-value artifact store; `lados_artifact_versions` append-only history
+- `ArtifactService` — `upsertArtifact()`, `readArtifact()`, `listArtifacts()`, emits `ArtifactWritten` event
+- `artifact.write` and `artifact.read` nodes in `core-pack` (canonical); legacy `project.save_artifact` / `project.read_artifact` kept for backward compat
+- `ctx.projectId` added to `NodeContext` in `@lados/execution-engine`
+
+**Delivered — Pack manifest extensions:**
+- `resources[]` block added to `PackManifest` in `@lados/pack-sdk` — type-aware view config (primaryField, badgeField, inlineActions per state)
+- `workflowTemplates[]` array added — paths to workflow template JSONs bundled in the pack
+- `contractor-pack` manifest extended with full `resources` view config for all 8 Contractor Edition resource types, and `workflowTemplates` pointing to 3 pre-wired workflow JSONs
+
+**Delivered — NodeManifest schema extensions (Section 4.2):**
+- `configSchema` (design-time, `ctx.config`), `inputSchema` (runtime, `ctx.inputs`), `outputSchema` (downstream port typing) added to `NodeManifest` in `@lados/node-sdk`
+- Full UI widget vocabulary locked: `text`, `textarea`, `number`, `date`, `select`, `toggle`, `file-upload`, `resource-picker`, `json`
+- `resource-picker` widget spec: `ui:resourceType` + `ui:displayField` annotations
+
+**Delivered — API extensions:**
+- `GET /packs/resource-views` — aggregates resource view configs from all active packs; used by `/resources` page on mount
+- `GET /packs/:id/templates` — returns workflow template paths for a pack
+
+**Delivered — Generic Resources page (`/resources`):**
+- Type tabs from pack manifest view configs (no hardcoded types)
+- State filter dropdown from live resource states
+- Client-side search by name
+- Mobile-first card layout driven by `views.list` config (primaryField, secondaryField, badgeField, counterField)
+- Inline actions: `state.change` actions executed directly via `POST /resources/:id/transition`; workflow-node actions shown as disabled with tooltip (future: "Run Workflow" modal)
+- Confirm modal for `requiresConfirm` actions
+
+**Delivered — Workflow Templates:**
+- `packs/contractor-pack/workflow_templates/` — 3 pre-wired JSON blueprints:
+  - `job-creation.json` — Create Job → notify supervisor
+  - `trip-dispatch.json` — Assign vehicle/driver → notify driver
+  - `invoice-generation.json` — Generate Invoice → request human approval → notify on decision
+
+**Deferred to Phase 10+:**
+- "Start from Template" modal in New Workflow flow (template clone to canvas)
+- PropertyPanel `inputSchema` widgets ("Runtime Inputs" section)
+- Workflow trigger modal: prompt for `inputSchema` fields before manual run
+- `resource-picker` widget implementation in PropertyPanel
+- Driver mobile-friendly trip recording flow (PWA)
+- Maintenance reminder workflow and payroll draft calculation
+- AI owner assistant grounded in resource + event context
+
+**Acceptance:**
+- ✅ Job, Trip, FuelReceipt, Invoice resources flow through the Resource Engine
+- ✅ State machines enforce lifecycle for all Contractor Edition types
+- ✅ contractor-pack nodes callable from any workflow
+- ✅ /jobs and /operations pages removed — replaced by redirect to generic Resources page
+- ✅ Generic Resources page with type/state filtering built at `apps/web/src/app/(app)/resources/page.tsx`
+- ✅ Workflow Artifacts — `lados_artifacts` table + `artifact.write` / `artifact.read` nodes
+- ✅ Pack manifest extended with `resources[]` views config and `workflowTemplates[]`
+- ✅ `GET /packs/resource-views` and `GET /packs/:id/templates` endpoints live
+- ✅ Platform nav is now engine-level only (8 items, no industry-specific pages)
 
 ### Phase 10: AI Runtime Upgrade
 
@@ -1036,6 +1392,9 @@ LEOS / JKR must be built on top of LCE. It must not fork the engine. The existin
 - Do not allow published workflow versions to be silently edited
 - Do not allow pack upgrades to break live workflows without a migration plan
 - Do not let real node implementations live in the API app — they belong in their packs
+- **Do not add industry-specific pages or navigation items to `apps/web/src/app/(app)/layout.tsx`** — the platform nav is engine-level only; solutions are accessed through the generic Resources, Projects, and Workflows views
+- **Do not create dedicated solution pages** (`/jobs`, `/fleet`, `/drivers`, `/operations`) — these are resources, browsable through the generic `/resources` view with type filtering
+- Do not pass workflow outputs between workflows through hardcoded resource IDs — use Workflow Artifacts (`artifact.write` / `artifact.read`) for cross-workflow data passing within a project
 
 ### 8.2 AI Guardrails
 

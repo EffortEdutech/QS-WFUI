@@ -2,8 +2,8 @@ import type {
   QSWorkflowDefinition,
   WorkflowNodeInstance,
   WorkflowConnection,
-} from '@qsos/shared-types';
-import type { WorkflowId, NodeInstanceId, NodeTypeId } from '@qsos/shared-types';
+} from '@lados/shared-types';
+import type { WorkflowId, NodeInstanceId, NodeTypeId } from '@lados/shared-types';
 import { WORKFLOW_SCHEMA_VERSION } from './constants';
 
 /**

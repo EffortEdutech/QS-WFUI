@@ -1,6 +1,6 @@
 import { WORKFLOW_SCHEMA_VERSION } from './constants';
 import type { ValidationResult, ValidationError } from './types';
-import type { QSWorkflowDefinition } from '@qsos/shared-types';
+import type { QSWorkflowDefinition } from '@lados/shared-types';
 
 /**
  * Validates a raw JSON object against the QS-OS Workflow JSON schema (v1.0).

@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/shared-types",
+  "name": "@lados/shared-types",
   "version": "0.1.0",
   "description": "Shared TypeScript types and interfaces for QS-OS V2",
   "main": "./dist/index.js",

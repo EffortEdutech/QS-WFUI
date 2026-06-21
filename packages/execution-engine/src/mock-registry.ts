@@ -1,5 +1,5 @@
 /**
- * @qsos/execution-engine — Mock Node Registry
+ * @lados/execution-engine — Mock Node Registry
  *
  * Sprint 6: Provides mock implementations for all 12 MVP nodes.
  * Actual node packages are loaded in a later sprint; for now every node
@@ -7,7 +7,7 @@
  * end-to-end without real integrations.
  */
 
-import type { NodeContext, NodeExecuteResult } from '@qsos/node-sdk';
+import type { NodeContext, NodeExecuteResult } from '@lados/node-sdk';
 import type { MockNodeExecutor } from './types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

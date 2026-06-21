@@ -1,11 +1,11 @@
 /**
- * @qsos/execution-engine — Graph Planner
+ * @lados/execution-engine — Graph Planner
  *
  * Converts a QSWorkflowDefinition into a topologically-sorted ExecutionPlan.
  * Detects cycles and validates that every node type is referenced correctly.
  */
 
-import type { QSWorkflowDefinition, WorkflowNodeInstance, NodeInstanceId } from '@qsos/shared-types';
+import type { QSWorkflowDefinition, WorkflowNodeInstance, NodeInstanceId } from '@lados/shared-types';
 import type { ExecutionPlan, ExecutionStep } from './types';
 
 // ── Build adjacency ───────────────────────────────────────────────────────────

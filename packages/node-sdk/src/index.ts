@@ -1,5 +1,5 @@
 /**
- * @qsos/node-sdk
+ * @lados/node-sdk
  *
  * Base classes, interfaces, and types for building QS-OS nodes.
  * Sprint 5 (S5-001) — full implementation.

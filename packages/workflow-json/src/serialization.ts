@@ -1,4 +1,4 @@
-import type { QSWorkflowDefinition } from '@qsos/shared-types';
+import type { QSWorkflowDefinition } from '@lados/shared-types';
 import { validateWorkflow } from './validate';
 
 /**

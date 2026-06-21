@@ -51,7 +51,7 @@ const COMING_SOON_CAPABILITY: ComingSoonPack[] = [
     id: 'qsos.bq-pack',
     display_name: 'BQ Analytics Pack',
     description: 'Cost plan import, BQ variance analysis, and earned-value metrics for QS workflows.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '📊',
     color: '#8B5CF6',
     category: 'Analytics',
@@ -60,7 +60,7 @@ const COMING_SOON_CAPABILITY: ComingSoonPack[] = [
     id: 'qsos.contract-pack',
     display_name: 'Contract Management Pack',
     description: 'JCT/FIDIC clause lookup, variation orders, interim payment certificates.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '📜',
     color: '#F59E0B',
     category: 'Contract',
@@ -69,7 +69,7 @@ const COMING_SOON_CAPABILITY: ComingSoonPack[] = [
     id: 'qsos.tender-pack',
     display_name: 'Tender Pack',
     description: 'Tender document generation, bid comparison, shortlisting automation.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '🏷',
     color: '#10B981',
     category: 'Procurement',
@@ -78,7 +78,7 @@ const COMING_SOON_CAPABILITY: ComingSoonPack[] = [
     id: 'qsos.reporting-pack',
     display_name: 'Reporting Pack',
     description: 'Monthly valuation summaries, cash-flow forecasts, and board-level dashboards.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '📈',
     color: '#EF4444',
     category: 'Reporting',
@@ -90,7 +90,7 @@ const COMING_SOON_DATA: ComingSoonPack[] = [
     id: 'data.cidb-rates',
     display_name: 'CIDB Rate Schedule',
     description: 'Current CIDB construction cost data for Malaysia (quarterly updated).',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '🏗',
     color: '#3B82F6',
     category: 'Cost Data',
@@ -99,7 +99,7 @@ const COMING_SOON_DATA: ComingSoonPack[] = [
     id: 'data.jubm-benchmarks',
     display_name: 'JUBM Cost Benchmarks',
     description: 'JUBM/Arcadis international construction cost benchmarks database.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '🌐',
     color: '#6366F1',
     category: 'Benchmarks',
@@ -108,7 +108,7 @@ const COMING_SOON_DATA: ComingSoonPack[] = [
     id: 'data.klang-valley-rates',
     display_name: 'Klang Valley Market Rates',
     description: 'Subcontractor and material market rates specific to Klang Valley.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '🏙',
     color: '#EC4899',
     category: 'Market Data',
@@ -117,7 +117,7 @@ const COMING_SOON_DATA: ComingSoonPack[] = [
     id: 'data.ms-standards',
     display_name: 'Malaysian Standards Library',
     description: 'MS, SIRIM, and relevant IS/BS standards for construction specifications.',
-    author: 'QS-OS Team',
+    author: 'Lados Team',
     icon: '📋',
     color: '#14B8A6',
     category: 'Standards',
@@ -246,7 +246,7 @@ export default function MarketplacePage() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">Marketplace</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Browse and manage Capability Packs and Data Packs for your QS-OS platform.
+          Browse and manage Capability Packs and Data Packs for your Lados platform.
         </p>
       </div>
 

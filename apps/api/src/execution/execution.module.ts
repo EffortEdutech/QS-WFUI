@@ -3,12 +3,17 @@ import { ExecutionController } from './execution.controller';
 import { ExecutionService } from './execution.service';
 import { FileModule } from '../file/file.module';
 import { LibraryModule } from '../library/library.module';
+import { ResourceModule } from '../resource/resource.module';
+import { StateEngineModule } from '../state-engine/state-engine.module';
+import { ApprovalCoreModule } from '../approval/approval-core.module';
+import { ArtifactModule } from '../artifact/artifact.module';
 
-// AiModule is @Global() and imported in AppModule — no need to import here.
-// AiService is available via NestJS global scope.
+// AiModule, NotificationModule, DocumentModule, EventBusModule are @Global() — available via global scope.
+// Phase 7:  ApprovalCoreModule provides ApprovalTaskCreator (no circular dep with ExecutionModule).
+// Phase 9C: ArtifactModule provides ArtifactService for artifact.write / artifact.read nodes.
 
 @Module({
-  imports: [FileModule, LibraryModule],
+  imports: [FileModule, LibraryModule, ResourceModule, StateEngineModule, ApprovalCoreModule, ArtifactModule],
   controllers: [ExecutionController],
   providers: [ExecutionService],
   exports: [ExecutionService],

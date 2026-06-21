@@ -1,0 +1,21 @@
+{
+  "name": "@lados/contractor-pack",
+  "version": "0.1.0",
+  "description": "Contractor Edition nodes for Lados — jobs, trips, fleet, fuel receipts, invoices",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -p tsconfig.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@lados/execution-engine": "workspace:*",
+    "@lados/node-sdk": "workspace:*",
+    "@lados/pack-sdk": "workspace:*",
+    "@lados/foundation-pack": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

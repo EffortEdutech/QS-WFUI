@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import type { ApiResponse } from '@qsos/shared-types';
+import type { ApiResponse } from '@lados/shared-types';
 
 interface HealthData {
   status: string;

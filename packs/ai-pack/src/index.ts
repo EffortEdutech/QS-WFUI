@@ -1,5 +1,5 @@
 /**
- * @qsos/ai-pack
+ * @lados/ai-pack
  *
  * AI assistant nodes using the OpenAI-compatible provider abstraction.
  * Sprint 1 stub — deferred to Sprint 6 (AI integration sprint).
@@ -8,7 +8,7 @@
  * "AI is advisory only. AI MUST NOT approve, certify, decide entitlement,
  *  or impersonate a registered Professional Quantity Surveyor / Sr. QS."
  */
-import type { PackManifest } from '@qsos/pack-sdk';
+import type { PackManifest } from '@lados/pack-sdk';
 
 export const PACK_ID = 'ai-pack' as const;
 export const PACK_VERSION = '0.1.0' as const;

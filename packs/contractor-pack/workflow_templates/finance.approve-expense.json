@@ -1,0 +1,88 @@
+{
+  "id": "contractor.finance.approve-expense",
+  "name": "Approve Expense",
+  "description": "Submits an expense for owner approval. AI guardrail: expense cannot be approved without human decision — the foundation.request_approval node gates this workflow.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "finance", "expense", "approval"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "expenseId", "label": "Expense",      "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "expense", "ui:displayField": "name" },
+        { "key": "notes",     "label": "Context Notes", "type": "string", "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "foundation.request_approval",
+      "label": "Owner Approval Required",
+      "position": { "x": 350, "y": 200 },
+      "config": {
+        "title": "Expense Approval Required",
+        "description": "Please review the expense and approve or reject.",
+        "roles": ["owner", "admin"]
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "expenseId", "toInput": "resourceId" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "contractor.approve_expense",
+      "label": "Approve Expense",
+      "position": { "x": 600, "y": 120 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "expenseId", "toInput": "expenseId" },
+          { "fromNodeId": "node-1",    "fromOutput": "notes",     "toInput": "notes" }
+        ]
+      }
+    },
+    {
+      "id": "node-3",
+      "type": "foundation.send_notification",
+      "label": "Notify — Approved",
+      "position": { "x": 850, "y": 120 },
+      "config": {
+        "channel": "in_app",
+        "title": "Expense Approved",
+        "body": "Your expense has been approved."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-2", "fromOutput": "expenseId", "toInput": "resourceId" }
+        ]
+      }
+    },
+    {
+      "id": "node-4",
+      "type": "foundation.send_notification",
+      "label": "Notify — Rejected",
+      "position": { "x": 600, "y": 320 },
+      "config": {
+        "channel": "in_app",
+        "title": "Expense Rejected",
+        "body": "Your expense was not approved. Please review and resubmit."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "expenseId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2",  "label": "approved" },
+    { "id": "e3", "source": "node-2",    "target": "node-3" },
+    { "id": "e4", "source": "node-1",    "target": "node-4",  "label": "rejected" }
+  ]
+}

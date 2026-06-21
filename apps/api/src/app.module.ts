@@ -20,6 +20,13 @@ import { NotificationModule } from './notification/notification.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { RfqDistributionModule } from './rfq-distribution/rfq-distribution.module';
 import { QuotationModule } from './quotation/quotation.module';
+import { ApprovalModule } from './approval/approval.module';
+import { ApprovalCoreModule } from './approval/approval-core.module';
+import { ResourceModule } from './resource/resource.module';
+import { EventBusModule } from './event-bus/event-bus.module';
+import { StateEngineModule } from './state-engine/state-engine.module';
+import { SecurityModule } from './security/security.module';
+import { PackModule } from './pack/pack.module';
 import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
@@ -48,6 +55,13 @@ import { MulterModule } from '@nestjs/platform-express';
     SupplierModule,       // Sprint 17 — supplier/contractor database
     RfqDistributionModule, // Sprint 17 — RFQ distribution to suppliers
     QuotationModule,      // Sprint 17 — quotation submission & comparison
+    ApprovalCoreModule,   // Phase 7  — ApprovalTaskCreator (no circular dep; used by foundation-pack)
+    ApprovalModule,       // Phase 1  — human approval inbox + pause/resume
+    ResourceModule,       // Phase 3  — Resource Engine (job/fleet/worker/material/site)
+    EventBusModule,       // Phase 4  — Universal event log + subscription triggers (@Global)
+    StateEngineModule,    // Phase 5  — Configurable state machines + transition guards
+    SecurityModule,       // Phase 6  — Security Engine: RBAC + API keys (@Global)
+    PackModule,           // Phase 8  — Pack Registry + Installer (enable/disable/sync)
     MulterModule.register({ dest: '/tmp/uploads' }),  // in-memory buffer preferred
   ],
 })

@@ -1,0 +1,13 @@
+/**
+ * DEPRECATED — this route is no longer part of the Lados platform.
+ *
+ * Trips and fuel receipts are resource types managed by @lados/contractor-pack.
+ * Access them via /resources?type=trip or /resources?type=fuel_receipt
+ *
+ * See docs/LCE_V1/Lados_Core_Engine_V1_Implementation_Blueprint.md §3.10
+ */
+import { redirect } from 'next/navigation';
+
+export default function OperationsRedirect() {
+  redirect('/resources?type=trip');
+}

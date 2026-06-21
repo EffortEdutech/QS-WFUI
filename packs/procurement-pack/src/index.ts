@@ -1,35 +1,54 @@
 /**
- * @qsos/procurement-pack
+ * @lados/procurement-pack
  *
- * Procurement workflow nodes: tender, subcontract award, supplier management,
- * purchase orders, delivery receipts.
- * Sprint 1 stub — implementation deferred to Sprint 5.
+ * Procurement nodes — RFQ generation, Purchase Order generation.
+ *
+ * Phase 2: nodes migrated from apps/api/src/execution/real-nodes/
+ *          Cross-pack types (WorkPackage, ClassifiedItem) imported from @lados/qs-pack.
  */
-import type { PackManifest } from '@qsos/pack-sdk';
+import type { PackManifest } from '@lados/pack-sdk';
+import type { NodeContext, NodeExecuteResult } from '@lados/execution-engine';
 
-export const PACK_ID = 'procurement-pack' as const;
-export const PACK_VERSION = '0.1.0' as const;
+import { realGenerateRfq } from './nodes/procurement-generate-rfq';
+import { realGeneratePo }  from './nodes/procurement-generate-po';
+
+export { type ILibraryService }  from './nodes/procurement-generate-rfq';
+export { type RfqArtifact }      from './nodes/procurement-generate-rfq';
+export { type PoArtifact, type PoLineItem } from './nodes/procurement-generate-po';
+
+export const PACK_ID      = 'procurement-pack' as const;
+export const PACK_VERSION = '0.2.0' as const;
 
 export const manifest: PackManifest = {
   id: PACK_ID,
   version: PACK_VERSION,
   displayName: 'Procurement Pack',
-  description:
-    'Procurement business capabilities — RFQ generation, quotation collection and comparison, supplier recommendation, purchase orders',
-  author: 'QS-OS Team',
+  description: 'Procurement capabilities — RFQ generation, quotation collection, Purchase Orders',
+  author: 'Lados Platform',
   nodes: [
-    // Procurement capabilities (Vol 0 §28.2)
-    'procurement.generate-rfq',         // Generate RFQ
-    'procurement.send-rfq',             // Send RFQ
-    'procurement.collect-quotation',    // Collect Quotation
-    'procurement.normalize-quotation',  // Normalize Quotation
-    'procurement.compare-quotations',   // Compare Quotations
-    'procurement.recommend-supplier',   // Recommend Supplier
-    'procurement.generate-purchase-order', // Generate Purchase Order
+    'procurement.generate_rfq',
+    'procurement.generate_po',
   ],
 };
 
-// Sprint 5: export { GenerateRfqNode } from './nodes/generate-rfq.node';
-// Sprint 5: export { CompareQuotationsNode } from './nodes/compare-quotations.node';
-// Sprint 5: export { RecommendSupplierNode } from './nodes/recommend-supplier.node';
-// Sprint 5: export { GeneratePurchaseOrderNode } from './nodes/generate-purchase-order.node';
+export interface ProcurementPackServices {
+  libraryService: import('./nodes/procurement-generate-rfq').ILibraryService;
+}
+
+type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
+
+/**
+ * Returns the real executor for a procurement-pack node type, or null if unknown.
+ */
+export function resolveNode(
+  services: ProcurementPackServices,
+): (nodeType: string) => NodeExecutor | null {
+  const { libraryService } = services;
+
+  const nodes: Record<string, NodeExecutor> = {
+    'procurement.generate_rfq': (ctx) => realGenerateRfq(ctx, libraryService),
+    'procurement.generate_po':  (ctx) => realGeneratePo(ctx, libraryService),
+  };
+
+  return (nodeType: string) => nodes[nodeType] ?? null;
+}

@@ -2,7 +2,7 @@
  * Canonical Workflow JSON types — mirrored from Vol 4 specification.
  * These are the DTO / serializable forms used in API payloads.
  *
- * Full runtime spec lives in @qsos/workflow-json.
+ * Full runtime spec lives in @lados/workflow-json.
  */
 
 import type { WorkflowId, NodeInstanceId, NodeTypeId } from './ids';

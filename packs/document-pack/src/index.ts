@@ -1,36 +1,54 @@
 /**
- * @qsos/document-pack
+ * @lados/document-pack
  *
- * Document processing nodes: PDF generation, DOCX parsing, Supabase Storage upload.
- * Sprint 1 stub — node implementations added in Sprint 3+.
+ * Document processing nodes — Excel reading, file upload.
+ *
+ * Phase 2: nodes migrated from apps/api/src/execution/real-nodes/
  */
-import type { PackManifest } from '@qsos/pack-sdk';
+import type { PackManifest } from '@lados/pack-sdk';
+import type { NodeContext, NodeExecuteResult } from '@lados/execution-engine';
 
-export const PACK_ID = 'document-pack' as const;
-export const PACK_VERSION = '0.1.0' as const;
+import { realUploadFile } from './nodes/document-upload-file';
+import { realReadExcel }  from './nodes/document-read-excel';
+
+export { type IFileService, type ILibraryService, type IDocumentService, type ExcelRow }
+  from './nodes/document-read-excel';
+
+export const PACK_ID      = 'document-pack' as const;
+export const PACK_VERSION = '0.2.0' as const;
 
 export const manifest: PackManifest = {
   id: PACK_ID,
   version: PACK_VERSION,
   displayName: 'Document Pack',
-  description:
-    'Document business capabilities — read Excel/PDF, extract tables, generate Word/PDF, save and convert documents',
-  author: 'QS-OS Team',
+  description: 'Document business capabilities — Excel reading, file upload, PDF generation',
+  author: 'Lados Platform',
   nodes: [
-    // Document capabilities (Vol 0 §28.4)
-    'document.read-excel',       // Read Excel
-    'document.read-pdf',         // Read PDF
-    'document.extract-table',    // Extract Table
-    'document.generate-word',    // Generate Word
-    'document.generate-pdf',     // Generate PDF
-    'document.save-document',    // Save Document
-    'document.convert-file',     // Convert File
+    'document.upload_file',
+    'document.read_excel',
   ],
 };
 
-// Sprint 3+: export { ReadExcelNode } from './nodes/read-excel.node';
-// Sprint 3+: export { ReadPdfNode } from './nodes/read-pdf.node';
-// Sprint 3+: export { ExtractTableNode } from './nodes/extract-table.node';
-// Sprint 3+: export { GenerateWordNode } from './nodes/generate-word.node';
-// Sprint 3+: export { GeneratePdfNode } from './nodes/generate-pdf.node';
-// Sprint 3+: export { SaveDocumentNode } from './nodes/save-document.node';
+export interface DocumentPackServices {
+  fileService: import('./nodes/document-read-excel').IFileService;
+  libraryService?: import('./nodes/document-read-excel').ILibraryService;
+  documentService?: import('./nodes/document-read-excel').IDocumentService;
+}
+
+type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
+
+/**
+ * Returns the real executor for a document-pack node type, or null if unknown.
+ */
+export function resolveNode(
+  services: DocumentPackServices,
+): (nodeType: string) => NodeExecutor | null {
+  const { fileService, libraryService, documentService } = services;
+
+  const nodes: Record<string, NodeExecutor> = {
+    'document.upload_file': (ctx) => realUploadFile(ctx),
+    'document.read_excel':  (ctx) => realReadExcel(ctx, fileService, libraryService, documentService),
+  };
+
+  return (nodeType: string) => nodes[nodeType] ?? null;
+}

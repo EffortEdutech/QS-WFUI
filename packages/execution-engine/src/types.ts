@@ -1,10 +1,10 @@
 /**
- * @qsos/execution-engine — Core types
+ * @lados/execution-engine — Core types
  * Sprint 6 (S6-002)
  */
 
-import type { QSWorkflowDefinition } from '@qsos/shared-types';
-import type { NodeContext, NodeExecuteResult, NodeLogger } from '@qsos/node-sdk';
+import type { QSWorkflowDefinition } from '@lados/shared-types';
+import type { NodeContext, NodeExecuteResult, NodeLogger } from '@lados/node-sdk';
 
 // ── Re-export NodeContext so callers only import from execution-engine ────────
 export type { NodeContext, NodeExecuteResult, NodeLogger };
@@ -65,6 +65,39 @@ export interface ExecutionResult {
   startedAt: string;
   completedAt: string;
   durationMs: number;
+  /**
+   * Phase 1: set when status === 'paused'.
+   * The node ID at which execution halted awaiting human input.
+   */
+  pausedAtNodeId?: string;
+  /**
+   * Phase 1: set when status === 'paused'.
+   * Accumulated outputs of all nodes that ran before the pause point.
+   * Used by resumeRun() to skip already-completed nodes.
+   */
+  checkpointOutputs?: Record<string, Record<string, unknown>>;
+  /**
+   * Phase 1: set when status === 'paused'.
+   * The approval_tasks.id that must be decided before the run can resume.
+   */
+  pendingApprovalTaskId?: string;
+}
+
+// ── Resume checkpoint ─────────────────────────────────────────────────────────
+
+export interface ResumeCheckpoint {
+  /** Node ID at which execution was paused */
+  pausedAtNodeId: string;
+  /** Outputs from all nodes that ran before the pause */
+  checkpointOutputs: Record<string, Record<string, unknown>>;
+  /** The approval decision injected as that node's output */
+  approvalResult: {
+    approved: boolean;
+    rejected: boolean;
+    comments: string;
+    approvalTaskId: string;
+    decidedBy: string;
+  };
 }
 
 // ── Runner options ────────────────────────────────────────────────────────────
@@ -85,6 +118,11 @@ export interface RunnerOptions {
    * Inject from NestJS context to give nodes access to DB/Storage services.
    */
   nodeResolver?: (nodeType: string) => ((ctx: NodeContext) => Promise<NodeExecuteResult>) | null;
+  /**
+   * Phase 1: When set, the runner resumes from a paused approval node
+   * instead of starting from scratch.
+   */
+  resumeFromCheckpoint?: ResumeCheckpoint;
 }
 
 // ── Mock node executor type ───────────────────────────────────────────────────

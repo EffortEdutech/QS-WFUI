@@ -1,5 +1,5 @@
 /**
- * @qsos/node-sdk — BaseNode abstract class
+ * @lados/node-sdk — BaseNode abstract class
  * Sprint 5 (S5-001)
  *
  * All concrete nodes extend BaseNode and implement:

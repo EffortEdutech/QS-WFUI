@@ -1,0 +1,56 @@
+{
+  "id": "contractor.finance.record-payment",
+  "name": "Record Payment",
+  "description": "Records a payment received against an invoice. Owner confirms the amount received; system creates a Payment resource and moves the Invoice to pending reconciliation.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "finance", "payment", "invoice"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "invoiceId", "label": "Invoice",           "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "invoice", "ui:displayField": "name" },
+        { "key": "amount",    "label": "Amount Received (MYR)", "type": "number", "required": true,  "ui:widget": "number" },
+        { "key": "method",    "label": "Payment Method",    "type": "string", "required": false, "ui:widget": "select", "ui:options": ["bank_transfer", "cash", "cheque", "online"] },
+        { "key": "reference", "label": "Bank / Cheque Ref", "type": "string", "required": false, "ui:widget": "text" },
+        { "key": "notes",     "label": "Notes",             "type": "string", "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.record_payment",
+      "label": "Record Payment",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Owner",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "Payment Recorded",
+        "body": "Payment of MYR {{node-1.outputs.amount}} has been recorded. Invoice is now pending reconciliation."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "paymentId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

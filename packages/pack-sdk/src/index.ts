@@ -1,5 +1,5 @@
 /**
- * @qsos/pack-sdk
+ * @lados/pack-sdk
  *
  * Base types and validation for QS-OS packs.
  * Sprint 5 (S5-002) — full implementation.
@@ -14,6 +14,11 @@ export type {
   PackNodeRegistration,
   PackValidationIssue,
   PackValidationResult,
+  // Resource view config types (Phase 9 Correction)
+  PackResourceDefinition,
+  ResourceViewConfig,
+  ResourceListViewConfig,
+  ResourceInlineAction,
 } from './types';
 
 export { validatePackManifest, assertPackManifest } from './validate';

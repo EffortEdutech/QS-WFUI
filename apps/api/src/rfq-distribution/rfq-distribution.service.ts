@@ -4,8 +4,9 @@
  * Tracks RFQ documents sent to individual suppliers.
  * Sprint 17 (S17-004)
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
+import { SecurityEngineService, OrgRole } from '../security/security.service';
 import type {
   CreateRfqDistributionsDto,
   UpdateRfqDistributionDto,
@@ -13,7 +14,10 @@ import type {
 
 @Injectable()
 export class RfqDistributionService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly security: SecurityEngineService,
+  ) {}
 
   /** List distributions for an org, optionally filtered by run or trade */
   async findAll(
@@ -102,17 +106,12 @@ export class RfqDistributionService {
 
   // ── Private ────────────────────────────────────────────────────────────────
 
-  private async assertMembership(orgId: string, userId: string, roles?: string[]) {
-    const { data: member } = await this.supabase.admin
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', orgId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!member) throw new NotFoundException('Access denied');
-    if (roles && !roles.includes(member.role as string)) {
-      throw new NotFoundException('Insufficient role');
+  /** Phase 6: delegates to SecurityEngineService — single DB call for role lookup */
+  private async assertMembership(orgId: string, userId: string, roles?: OrgRole[]): Promise<void> {
+    const userRole = await this.security.getRole(userId, orgId);
+    if (!userRole) throw new NotFoundException('Access denied');
+    if (roles && !roles.includes(userRole)) {
+      throw new ForbiddenException(`Requires role: ${roles.join(' or ')}`);
     }
   }
 }

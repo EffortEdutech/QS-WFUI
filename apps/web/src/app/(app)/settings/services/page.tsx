@@ -62,7 +62,7 @@ export default function ServicesPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Platform Services</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Core infrastructure services that power QS-OS skills and workflows.
+          Core infrastructure services that power Lados skills and workflows.
         </p>
       </div>
 
@@ -136,7 +136,7 @@ export default function ServicesPage() {
       )}
 
       <p className="mt-6 text-[11px] text-gray-300 text-center">
-        {services.length} services · QS-OS V3 Core Services Architecture
+        {services.length} services · Lados Core Engine V1 — Platform Services
       </p>
     </div>
   );

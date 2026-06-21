@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/qs-pack",
+  "name": "@lados/qs-pack",
   "version": "0.1.0",
   "description": "QS-OS quantity surveying pack — BOQ, measurement, cost plan, valuation nodes",
   "main": "./dist/index.js",
@@ -16,10 +16,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/node-sdk": "workspace:*",
-    "@qsos/pack-sdk": "workspace:*"
+    "@lados/execution-engine": "workspace:*",
+    "@lados/node-sdk": "workspace:*",
+    "@lados/pack-sdk": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^20.16.10",
     "typescript": "^5.4.0"
   }
 }

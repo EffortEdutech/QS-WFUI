@@ -1,0 +1,55 @@
+{
+  "id": "contractor.job-creation",
+  "name": "Job Creation",
+  "description": "Creates a new job, notifies the assigned supervisor, and sets the job to active.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "job", "onboarding"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual / API Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "jobName",       "label": "Job Name",         "type": "string",   "required": true,  "ui:widget": "text"   },
+        { "key": "customerId",    "label": "Customer",         "type": "string",   "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "customer", "ui:displayField": "name" },
+        { "key": "scheduledDate", "label": "Scheduled Date",   "type": "string",   "required": false, "ui:widget": "date"   },
+        { "key": "notes",         "label": "Notes",            "type": "string",   "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.create_job",
+      "label": "Create Job",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Supervisor",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "New Job Created",
+        "body": "Job '{{node-1.outputs.name}}' has been created and is ready for dispatch."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "jobId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

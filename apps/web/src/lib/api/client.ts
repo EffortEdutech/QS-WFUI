@@ -3,7 +3,7 @@
  * Attaches the Supabase session JWT to every request automatically.
  */
 import { createClient } from '@/lib/supabase/client';
-import type { ApiResponse } from '@qsos/shared-types';
+import type { ApiResponse } from '@lados/shared-types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 

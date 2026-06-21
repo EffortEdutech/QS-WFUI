@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/pack-sdk",
+  "name": "@lados/pack-sdk",
   "version": "0.1.0",
   "description": "QS Pack SDK — base classes for building and registering QS-OS packs",
   "main": "./dist/index.js",
@@ -16,8 +16,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/node-sdk": "workspace:*",
-    "@qsos/shared-types": "workspace:*"
+    "@lados/node-sdk": "workspace:*",
+    "@lados/shared-types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

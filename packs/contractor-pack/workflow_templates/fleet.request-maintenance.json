@@ -1,0 +1,56 @@
+{
+  "id": "contractor.fleet.request-maintenance",
+  "name": "Request Maintenance",
+  "description": "Creates a maintenance record for a vehicle or equipment, transitions the asset to maintenance state (blocking dispatch), and notifies the admin.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "fleet", "maintenance", "vehicle", "equipment"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual / Alert Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "assetId",       "label": "Vehicle or Equipment", "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "vehicle", "ui:displayField": "name" },
+        { "key": "assetType",     "label": "Asset Type",           "type": "string", "required": true,  "ui:widget": "select", "ui:options": ["vehicle", "equipment"] },
+        { "key": "description",   "label": "Work Required",        "type": "string", "required": true,  "ui:widget": "textarea" },
+        { "key": "scheduledDate", "label": "Scheduled Date",       "type": "string", "required": false, "ui:widget": "date" },
+        { "key": "workshop",      "label": "Workshop / Vendor",    "type": "string", "required": false, "ui:widget": "text" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.create_maintenance_record",
+      "label": "Create Maintenance Record",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Admin",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "Maintenance Scheduled",
+        "body": "Asset has been sent for service. Maintenance record created. Asset is now unavailable for dispatch."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "maintenanceRecordId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

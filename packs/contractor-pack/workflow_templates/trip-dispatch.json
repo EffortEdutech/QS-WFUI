@@ -1,0 +1,57 @@
+{
+  "id": "contractor.trip-dispatch",
+  "name": "Trip Dispatch",
+  "description": "Assigns a vehicle and driver to a job, creates the trip resource, and notifies the driver.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "trip", "dispatch"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual / API Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "jobId",          "label": "Job",           "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "job",     "ui:displayField": "name" },
+        { "key": "vehicleId",      "label": "Vehicle",       "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "vehicle", "ui:displayField": "name" },
+        { "key": "driverId",       "label": "Driver",        "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "driver",  "ui:displayField": "name" },
+        { "key": "scheduledStart", "label": "Scheduled Start", "type": "string", "required": false, "ui:widget": "date" },
+        { "key": "originLocation", "label": "Origin",        "type": "string", "required": false, "ui:widget": "text" },
+        { "key": "destLocation",   "label": "Destination",   "type": "string", "required": false, "ui:widget": "text" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.dispatch_trip",
+      "label": "Dispatch Trip",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Driver",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "New Trip Assigned",
+        "body": "You have been assigned a new trip for job '{{trigger-1.inputs.jobId}}'. Please check your schedule."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "tripId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

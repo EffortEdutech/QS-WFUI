@@ -22,7 +22,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import type { User } from '@supabase/supabase-js';
-import type { ApiResponse } from '@qsos/shared-types';
+import type { ApiResponse } from '@lados/shared-types';
 import { SupabaseJwtGuard } from '../common/guards/supabase-jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SupplierService } from './supplier.service';

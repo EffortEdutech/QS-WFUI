@@ -1,5 +1,5 @@
 /**
- * @qsos/workflow-json
+ * @lados/workflow-json
  *
  * Workflow JSON schema validation, parsing, serialization, and building.
  * Schema version: 1.0

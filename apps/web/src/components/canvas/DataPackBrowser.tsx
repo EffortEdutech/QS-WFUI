@@ -130,7 +130,7 @@ export default function DataPackBrowser() {
                 {pack.is_official && (
                   <span
                     className="rounded px-1 py-0.5 text-[9px] font-medium bg-green-50 text-green-600"
-                    title="Official QS-OS Data Pack"
+                    title="Official Lados Data Pack"
                   >
                     ✓ Official
                   </span>

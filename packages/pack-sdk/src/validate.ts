@@ -1,5 +1,5 @@
 /**
- * @qsos/pack-sdk — Pack manifest validator
+ * @lados/pack-sdk — Pack manifest validator
  * Sprint 5 (S5-002)
  */
 

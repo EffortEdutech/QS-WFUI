@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/execution-engine",
+  "name": "@lados/execution-engine",
   "version": "0.1.0",
   "description": "QS-OS workflow execution engine — DAG runner, node scheduler, and state machine",
   "main": "./dist/index.js",
@@ -16,9 +16,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/node-sdk": "workspace:*",
-    "@qsos/shared-types": "workspace:*",
-    "@qsos/workflow-json": "workspace:*"
+    "@lados/node-sdk": "workspace:*",
+    "@lados/shared-types": "workspace:*",
+    "@lados/workflow-json": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

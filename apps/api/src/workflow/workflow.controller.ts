@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 
 import type { User } from '@supabase/supabase-js';
-import type { ApiResponse } from '@qsos/shared-types';
+import type { ApiResponse } from '@lados/shared-types';
 import { SupabaseJwtGuard } from '../common/guards/supabase-jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { WorkflowService } from './workflow.service';
@@ -93,6 +93,23 @@ export class WorkflowController {
     @CurrentUser() user: User,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.workflowService.importWorkflow(projectId, bundle, user.id);
+    return { success: true, data, error: null };
+  }
+
+  // ── Phase 1: Publish ──────────────────────────────────────────────────────
+
+  /**
+   * POST /projects/:projectId/workflows/:id/publish
+   *
+   * Snapshots current definition → sets published_version_id.
+   * Executions will run from this snapshot, not the live draft.
+   */
+  @Post(':id/publish')
+  async publish(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.workflowService.publish(id, user.id);
     return { success: true, data, error: null };
   }
 

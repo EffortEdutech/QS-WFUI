@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import NodePalette from '@/components/canvas/NodePalette';
 import type { BulkModeRequest } from '@/components/canvas/WorkflowCanvas';
-import type { SkillMode } from '@qsos/shared-types';
+import type { SkillMode } from '@lados/shared-types';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
 import VersionHistoryDrawer from '@/components/canvas/VersionHistoryDrawer';
 import RunHistoryPanel from '@/components/canvas/RunHistoryPanel';
@@ -14,7 +14,7 @@ import LibraryPanel from '@/components/canvas/LibraryPanel';
 import DataPackBrowser from '@/components/canvas/DataPackBrowser';
 import { apiClient } from '@/lib/api/client';
 import { createClient } from '@/lib/supabase/client';
-import type { QSWorkflowDefinition, WorkflowConnection, WorkflowNodeId } from '@qsos/shared-types';
+import type { QSWorkflowDefinition, WorkflowConnection, WorkflowNodeId } from '@lados/shared-types';
 
 // ── Normalize definition from DB ───────────────────────────────────────────────
 // Templates stored via SQL seed may use React Flow's "edges" key instead of

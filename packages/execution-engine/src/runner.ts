@@ -1,5 +1,5 @@
 /**
- * @qsos/execution-engine — Workflow Runner
+ * @lados/execution-engine — Workflow Runner
  *
  * Executes a workflow plan sequentially, node by node.
  * Writes status + log entries for each step.
@@ -7,7 +7,7 @@
  * Sprint 7 (S7-005) — real node resolver support (prefer real over mock).
  */
 
-import type { NodeContext, NodeExecuteResult } from '@qsos/node-sdk';
+import type { NodeContext, NodeExecuteResult } from '@lados/node-sdk';
 import type {
   RunnerOptions,
   ExecutionResult,
@@ -69,16 +69,47 @@ export class WorkflowRunner {
       };
     }
 
-    // ── Execute steps sequentially ─────────────────────────────────────────
-    // Accumulated outputs — each node can read prior nodes' outputs
-    const nodeOutputs: Record<string, Record<string, unknown>> = {};
+    // ── Checkpoint restore (Phase 1 resume) ───────────────────────────────
+    const resume = this.options.resumeFromCheckpoint;
+    // Pre-seed nodeOutputs with everything completed before the pause
+    const nodeOutputs: Record<string, Record<string, unknown>> = resume
+      ? { ...resume.checkpointOutputs }
+      : {};
+    // If resuming, inject the approval decision as the paused node's output
+    if (resume) {
+      nodeOutputs[resume.pausedAtNodeId] = {
+        approved:         resume.approvalResult.approved,
+        rejected:         resume.approvalResult.rejected,
+        comments:         resume.approvalResult.comments,
+        approval_task_id: resume.approvalResult.approvalTaskId,
+        approver_role:    'human',
+      };
+    }
+
     let lastOutputs: Record<string, unknown> = inputs;
     let finalStatus: RunStatus = 'completed';
+    let pausedAtNodeId: string | undefined;
+    let pendingApprovalTaskId: string | undefined;
 
+    // ── Execute steps sequentially ─────────────────────────────────────────
     for (const step of plan.steps) {
       if (this.aborted) {
         finalStatus = 'cancelled';
         break;
+      }
+
+      // ── Skip nodes already completed in a prior run (resume path) ────────
+      if (resume && nodeOutputs[step.nodeId] !== undefined) {
+        logs.push({
+          nodeId:   step.nodeId,
+          nodeType: step.nodeType,
+          nodeName: step.nodeLabel,
+          status:   'completed',
+          outputs:  nodeOutputs[step.nodeId],
+          messages: ['[RESUME] Restored from checkpoint'],
+        });
+        lastOutputs = nodeOutputs[step.nodeId];
+        continue;
       }
 
       const nodeStartedAt = new Date().toISOString();
@@ -123,6 +154,20 @@ export class WorkflowRunner {
 
         nodeMessages.push(...(result.logs ?? []).map(String));
 
+        // ── Phase 1: handle pause signal from human_approval ─────────────
+        if (result.status === 'paused') {
+          pausedAtNodeId        = step.nodeId;
+          pendingApprovalTaskId = result.outputs?.['approval_task_id'] as string | undefined;
+          logEntry.status       = 'waiting';
+          logEntry.outputs      = result.outputs ?? {};
+          logEntry.messages     = nodeMessages;
+          logEntry.completedAt  = nodeCompletedAt;
+          logEntry.durationMs   = durationMs;
+          logs.push(logEntry);
+          finalStatus = 'paused';
+          break;
+        }
+
         if (result.status === 'failure') {
           logEntry.status = 'failed';
           logEntry.error = result.error ?? { code: 'NODE_FAILED', message: 'Node reported failure' };
@@ -163,16 +208,18 @@ export class WorkflowRunner {
       }
     }
 
-    // Mark skipped nodes (if we bailed early)
+    // Mark remaining nodes: skipped (failure/cancel) or waiting (paused)
     const executedNodeIds = new Set(logs.map((l) => l.nodeId));
     for (const step of plan.steps) {
       if (!executedNodeIds.has(step.nodeId)) {
         logs.push({
-          nodeId: step.nodeId,
+          nodeId:   step.nodeId,
           nodeType: step.nodeType,
           nodeName: step.nodeLabel,
-          status: 'skipped',
-          messages: ['Skipped due to earlier failure or cancellation'],
+          status:   finalStatus === 'paused' ? 'waiting' : 'skipped',
+          messages: [finalStatus === 'paused'
+            ? 'Waiting — workflow paused for human approval'
+            : 'Skipped due to earlier failure or cancellation'],
         });
       }
     }
@@ -187,6 +234,11 @@ export class WorkflowRunner {
       startedAt,
       completedAt,
       durationMs,
+      ...(finalStatus === 'paused' && {
+        pausedAtNodeId,
+        checkpointOutputs: nodeOutputs,
+        pendingApprovalTaskId,
+      }),
     };
   }
 

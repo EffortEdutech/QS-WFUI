@@ -33,7 +33,7 @@ async function bootstrap() {
   const port = parseInt(process.env['PORT'] ?? '4000', 10);
   await app.listen(port);
 
-  console.warn(`QS-OS API running on http://localhost:${port}/api/v1`);
+  console.warn(`Lados API running on http://localhost:${port}/api/v1`);
   console.warn(`Health: http://localhost:${port}/api/v1/health`);
 }
 

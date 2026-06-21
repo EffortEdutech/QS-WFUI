@@ -43,11 +43,11 @@ export default function LoginPage() {
         {/* Logo / Brand */}
         <div className="text-center">
           <div className="mx-auto h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold text-xl">Q</span>
+            <span className="text-white font-bold text-xl">L</span>
           </div>
-          <h1 className="mt-4 text-3xl font-bold text-gray-900">QS-OS</h1>
+          <h1 className="mt-4 text-3xl font-bold text-gray-900">Lados</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Quantity Surveying Workflow Operating System
+            Workflow Platform for Construction &amp; Contracting
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-gray-400">
-          QS-OS v0.1.0 · AI Business Capability Platform
+          Lados v0.1.0 · AI-powered Workflow Platform
         </p>
       </div>
     </div>

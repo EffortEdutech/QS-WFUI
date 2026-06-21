@@ -1,0 +1,88 @@
+{
+  "id": "contractor.payroll.approve-and-pay",
+  "name": "Approve and Pay Payroll",
+  "description": "Routes a payroll run through owner approval. On approval, marks run as approved and notifies payees to expect payment. AI guardrail: system never initiates bank transfer — owner performs transfer independently then marks run as paid via /resources.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "payroll", "hr", "approval"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Owner Initiates Approval",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "payrollRunId", "label": "Payroll Run", "type": "string", "required": true, "ui:widget": "resource-picker", "ui:resourceType": "payroll_run", "ui:displayField": "name" },
+        { "key": "notes",        "label": "Notes",       "type": "string", "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "foundation.request_approval",
+      "label": "Owner Approval — Payroll",
+      "position": { "x": 350, "y": 200 },
+      "config": {
+        "title": "Payroll Approval Required",
+        "description": "Review the payroll run and approve to proceed. You must perform the actual bank transfer — the system will NOT initiate any payment.",
+        "roles": ["owner", "admin"]
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payrollRunId", "toInput": "resourceId" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "contractor.approve_payroll",
+      "label": "Approve Payroll Run",
+      "position": { "x": 600, "y": 120 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payrollRunId", "toInput": "payrollRunId" },
+          { "fromNodeId": "node-1",    "fromOutput": "notes",        "toInput": "notes" }
+        ]
+      }
+    },
+    {
+      "id": "node-3",
+      "type": "foundation.send_notification",
+      "label": "Notify — Payroll Approved",
+      "position": { "x": 850, "y": 120 },
+      "config": {
+        "channel": "in_app",
+        "title": "Payroll Approved",
+        "body": "Payroll run approved. Please proceed with bank transfer and then mark as Paid in the system."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-2", "fromOutput": "payrollRunId", "toInput": "resourceId" }
+        ]
+      }
+    },
+    {
+      "id": "node-4",
+      "type": "foundation.send_notification",
+      "label": "Notify — Payroll Rejected",
+      "position": { "x": 600, "y": 320 },
+      "config": {
+        "channel": "in_app",
+        "title": "Payroll Rejected",
+        "body": "Payroll run was not approved. Please review the details and resubmit."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payrollRunId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2",  "label": "approved" },
+    { "id": "e3", "source": "node-2",    "target": "node-3" },
+    { "id": "e4", "source": "node-1",    "target": "node-4",  "label": "rejected" }
+  ]
+}

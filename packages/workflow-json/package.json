@@ -1,5 +1,5 @@
 {
-  "name": "@qsos/workflow-json",
+  "name": "@lados/workflow-json",
   "version": "0.1.0",
   "description": "Workflow JSON schema validation and serialization for QS-OS V2",
   "main": "./dist/index.js",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qsos/shared-types": "workspace:*"
+    "@lados/shared-types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

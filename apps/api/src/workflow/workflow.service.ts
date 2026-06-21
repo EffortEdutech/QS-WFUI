@@ -5,8 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
-import { validateWorkflow, WorkflowBuilder } from '@qsos/workflow-json';
-import type { WorkflowId } from '@qsos/shared-types';
+import { validateWorkflow, WorkflowBuilder } from '@lados/workflow-json';
+import type { WorkflowId } from '@lados/shared-types';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { SaveDefinitionDto } from './dto/save-definition.dto';
@@ -239,6 +239,59 @@ export class WorkflowService {
 
     if (error) throw new Error(error.message);
     return data ?? [];
+  }
+
+  /**
+   * Publish the current workflow definition.
+   *
+   * 1. Snapshots the live definition into workflow_versions (labelled "Published vN").
+   * 2. Sets published_version_id / published_at / published_by on the workflow row.
+   *
+   * Executions triggered after this point will use the published snapshot, not the
+   * live draft — see ExecutionService.triggerRun().
+   */
+  async publish(workflowId: string, userId: string) {
+    const workflow = await this.findOne(workflowId, userId);
+    await this.assertProjectAccess(workflow.project_id as string, userId, ['owner', 'admin', 'member']);
+
+    if (!workflow.definition || !(workflow.definition as { nodes?: unknown[] }).nodes?.length) {
+      throw new Error('Cannot publish a workflow with no nodes');
+    }
+
+    // Snapshot the current definition
+    const version = await this.snapshotVersion(
+      workflowId,
+      userId,
+      `Published v${(workflow as { version?: number }).version ?? 1}`,
+    );
+
+    // Mark the workflow as published
+    const { data, error } = await this.supabase.admin
+      .from('workflows')
+      .update({
+        published_version_id: version.id,
+        published_at:         new Date().toISOString(),
+        published_by:         userId,
+        status:               'active',
+      })
+      .eq('id', workflowId)
+      .select('id, name, status, published_version_id, published_at')
+      .single();
+
+    if (error ?? !data) throw new Error(error?.message ?? 'Publish failed');
+
+    await this.supabase.admin.from('audit_log').insert({
+      organization_id: null,   // filled by DB via project lookup if needed
+      project_id:      workflow.project_id,
+      actor_id:        userId,
+      event_type:      'workflow.published',
+      entity_type:     'workflow',
+      entity_id:       workflowId,
+      summary:         `Workflow "${workflow.name as string}" published (version ${version.version_number as number})`,
+      metadata:        { version_id: version.id, version_number: version.version_number },
+    });
+
+    return { published: true, version_id: version.id, version_number: version.version_number, workflow: data };
   }
 
   /** Restore the workflow definition to a specific version snapshot */

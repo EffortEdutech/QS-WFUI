@@ -1,0 +1,54 @@
+{
+  "id": "contractor.fleet.complete-maintenance",
+  "name": "Complete Maintenance",
+  "description": "Marks a maintenance record as completed and returns the vehicle or equipment to available state, unblocking dispatch.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "fleet", "maintenance", "vehicle", "equipment"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Workshop / Admin Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "maintenanceRecordId", "label": "Maintenance Record", "type": "string", "required": true,  "ui:widget": "resource-picker", "ui:resourceType": "maintenance_record", "ui:displayField": "name" },
+        { "key": "completionNotes",     "label": "Completion Notes",   "type": "string", "required": false, "ui:widget": "textarea" },
+        { "key": "cost",                "label": "Service Cost (MYR)", "type": "number", "required": false, "ui:widget": "number" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.clear_maintenance",
+      "label": "Clear Maintenance",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.send_notification",
+      "label": "Notify Admin — Asset Available",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "channel": "in_app",
+        "title": "Maintenance Complete",
+        "body": "Service completed. Asset is back to available and ready for dispatch."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "assetId", "toInput": "resourceId" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" }
+  ]
+}

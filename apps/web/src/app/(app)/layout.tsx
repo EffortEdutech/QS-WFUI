@@ -5,9 +5,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import NotificationBell from '@/components/notifications/NotificationBell';
 
+// Platform-level navigation only.
+// Solutions (Contractor Edition, LEOS, JKR) are NOT represented here.
+// Industry-specific data is accessed via /resources?type=<resourceType>.
+// See docs/LCE_V1/Lados_Core_Engine_V1_Implementation_Blueprint.md §3.10
 const NAV = [
   { href: '/dashboard',          label: 'Dashboard',   icon: '⊞' },
   { href: '/projects',           label: 'Projects',    icon: '📁' },
+  { href: '/resources',          label: 'Resources',   icon: '🗂️' },
+  { href: '/approvals',          label: 'Approvals',   icon: '✅' },
   { href: '/suppliers',          label: 'Suppliers',   icon: '🏗️' },
   { href: '/packs',              label: 'Packs',       icon: '📦' },
   { href: '/marketplace',        label: 'Marketplace', icon: '🛒' },
@@ -35,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Q
           </div>
           <div>
-            <p className="text-sm font-semibold leading-none">QS-OS</p>
+            <p className="text-sm font-semibold leading-none">Lados</p>
             <p className="text-[10px] text-gray-400 mt-0.5">Workflow Platform</p>
           </div>
         </div>

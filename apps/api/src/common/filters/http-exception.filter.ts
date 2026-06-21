@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ApiResponse } from '@qsos/shared-types';
+import type { ApiResponse } from '@lados/shared-types';
 
 /**
  * Global HTTP exception filter.

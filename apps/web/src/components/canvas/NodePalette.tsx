@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
-import type { SkillMode } from '@qsos/shared-types';
+import type { SkillMode } from '@lados/shared-types';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

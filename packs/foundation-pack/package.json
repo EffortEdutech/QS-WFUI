@@ -1,0 +1,28 @@
+{
+  "name": "@lados/foundation-pack",
+  "version": "0.1.0",
+  "description": "Lados Foundation Pack — universal capabilities: notifications, approvals, user assignment",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lados/execution-engine": "workspace:*",
+    "@lados/node-sdk": "workspace:*",
+    "@lados/pack-sdk": "workspace:*",
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "typescript": "^5.4.0"
+  }
+}

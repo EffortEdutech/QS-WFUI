@@ -1,0 +1,90 @@
+{
+  "id": "contractor.invoice-generation",
+  "name": "Invoice Generation",
+  "description": "Generates an invoice from completed trips for a job and routes it for human approval before sending. AI guardrail: invoice stays in pending_approval — only owner/admin may approve.",
+  "version": "1.0.0",
+  "packId": "lados.contractor-pack",
+  "tags": ["contractor", "invoice", "approval"],
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "core.cron_trigger",
+      "label": "Manual / API Trigger",
+      "position": { "x": 100, "y": 200 },
+      "config": {},
+      "inputSchema": [
+        { "key": "jobId",  "label": "Job",           "type": "string", "required": true, "ui:widget": "resource-picker", "ui:resourceType": "job", "ui:displayField": "name" },
+        { "key": "notes",  "label": "Invoice Notes", "type": "string", "required": false, "ui:widget": "textarea" }
+      ]
+    },
+    {
+      "id": "node-1",
+      "type": "contractor.generate_invoice",
+      "label": "Generate Invoice",
+      "position": { "x": 350, "y": 200 },
+      "config": {},
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "trigger-1", "fromOutput": "payload", "toInput": "payload" }
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "foundation.request_approval",
+      "label": "Request Invoice Approval",
+      "position": { "x": 600, "y": 200 },
+      "config": {
+        "title": "Invoice Approval Required",
+        "description": "Please review the generated invoice before it is sent to the customer.",
+        "requiredRole": "owner",
+        "allowedActions": ["approve", "reject"]
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-1", "fromOutput": "invoiceId", "toInput": "resourceId" }
+        ]
+      }
+    },
+    {
+      "id": "node-3",
+      "type": "foundation.send_notification",
+      "label": "Notify on Approval",
+      "position": { "x": 850, "y": 150 },
+      "config": {
+        "channel": "in_app",
+        "title": "Invoice Approved",
+        "body": "Invoice {{node-1.outputs.invoiceId}} has been approved and is ready to send."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-2", "fromOutput": "decision", "toInput": "payload" }
+        ]
+      },
+      "runWhen": "node-2.outputs.decision == 'approved'"
+    },
+    {
+      "id": "node-4",
+      "type": "foundation.send_notification",
+      "label": "Notify on Rejection",
+      "position": { "x": 850, "y": 280 },
+      "config": {
+        "channel": "in_app",
+        "title": "Invoice Rejected",
+        "body": "Invoice {{node-1.outputs.invoiceId}} was rejected. Reason: {{node-2.outputs.comment}}."
+      },
+      "connections": {
+        "inputs": [
+          { "fromNodeId": "node-2", "fromOutput": "decision", "toInput": "payload" }
+        ]
+      },
+      "runWhen": "node-2.outputs.decision == 'rejected'"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-1", "target": "node-1" },
+    { "id": "e2", "source": "node-1",    "target": "node-2" },
+    { "id": "e3", "source": "node-2",    "target": "node-3", "label": "approved" },
+    { "id": "e4", "source": "node-2",    "target": "node-4", "label": "rejected" }
+  ]
+}
