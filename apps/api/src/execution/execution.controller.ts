@@ -1,10 +1,11 @@
 /**
- * ExecutionController
+ * ExecutionController — Phase 12 (Async Execution Queue)
  *
  * POST   /workflows/:workflowId/run       — trigger a new run
  * GET    /workflows/:workflowId/runs      — list recent runs
  * GET    /runs/:runId                     — run details
  * GET    /runs/:runId/logs               — per-node log entries
+ * GET    /runs/:runId/stream             — SSE progress stream (Phase 12)
  */
 import {
   Controller,
@@ -13,18 +14,27 @@ import {
   Param,
   Body,
   Query,
+  Sse,
   UseGuards,
   Request,
   BadRequestException,
+  MessageEvent,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Observable, fromEvent, merge, timer } from 'rxjs';
+import { map, takeUntil, filter } from 'rxjs/operators';
 import { SupabaseJwtGuard as JwtAuthGuard } from '../common/guards/supabase-jwt.guard';
 import { ExecutionService } from './execution.service';
 import { TriggerRunDto } from './dto/trigger-run.dto';
+import { RUN_EVENT } from '../queue/queue.constants';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ExecutionController {
-  constructor(private readonly executionService: ExecutionService) {}
+  constructor(
+    private readonly executionService: ExecutionService,
+    private readonly emitter: EventEmitter2,
+  ) {}
 
   /** Trigger a workflow run */
   @Post('workflows/:workflowId/run')
@@ -96,6 +106,60 @@ export class ExecutionController {
     );
 
     return { success: result.status !== 'failure', data: result };
+  }
+
+  /**
+   * SSE progress stream for a run — Phase 12.
+   *
+   * Client subscribes to GET /runs/:runId/stream.
+   * Emits MessageEvents as the worker processes nodes.
+   * Stream closes automatically on run_complete / run_paused / run_failed,
+   * or after a 10-minute safety timeout.
+   *
+   * Falls back gracefully: if Redis is not connected the worker still emits
+   * events in-process via EventEmitter2, so SSE works in dev without Redis too.
+   */
+  @Sse('runs/:runId/stream')
+  streamRun(
+    @Param('runId') runId: string,
+  ): Observable<MessageEvent> {
+    // Terminal events that close the stream
+    const terminalEvents = [RUN_EVENT.RUN_COMPLETE, RUN_EVENT.RUN_PAUSED, RUN_EVENT.RUN_FAILED];
+
+    // Safety timeout — close after 10 min regardless
+    const timeout$ = timer(10 * 60 * 1000);
+
+    // Merge all run events, filter to this runId, map to MessageEvent
+    const events$ = merge(
+      fromEvent(this.emitter, RUN_EVENT.NODE_STARTED),
+      fromEvent(this.emitter, RUN_EVENT.NODE_DONE),
+      fromEvent(this.emitter, RUN_EVENT.RUN_COMPLETE),
+      fromEvent(this.emitter, RUN_EVENT.RUN_PAUSED),
+      fromEvent(this.emitter, RUN_EVENT.RUN_FAILED),
+    ).pipe(
+      filter((payload: unknown) => (payload as { runId: string }).runId === runId),
+      map((payload: unknown): MessageEvent => ({
+        data: JSON.stringify(payload),
+        type: 'message',
+        id:   Date.now().toString(),
+        retry: undefined,
+      })),
+      takeUntil(
+        merge(
+          timeout$,
+          // Close on terminal events for this run
+          merge(
+            fromEvent(this.emitter, RUN_EVENT.RUN_COMPLETE),
+            fromEvent(this.emitter, RUN_EVENT.RUN_PAUSED),
+            fromEvent(this.emitter, RUN_EVENT.RUN_FAILED),
+          ).pipe(
+            filter((p: unknown) => (p as { runId: string }).runId === runId),
+          ),
+        ),
+      ),
+    );
+
+    return events$;
   }
 
   /**

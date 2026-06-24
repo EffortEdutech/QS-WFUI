@@ -1,9 +1,10 @@
 /**
- * ExecutionService
+ * ExecutionService — Phase 12 (Async Execution Queue)
  *
- * - Triggers workflow runs (in-process, sequential mock)
- * - Persists run + logs to execution_runs / execution_logs tables
- * - Sprint 6 (S6-003)
+ * - Creates run records and enqueues jobs via ExecutionQueueService
+ * - Falls back to in-process execution when Redis is not available (dev without Redis)
+ * - All actual runner logic lives in ExecutionWorker (queue path) or _executeAndPersist (fallback)
+ * - Sprint 6 (S6-003) · Phase 12 (S12-004)
  *
  * Security note: AI is advisory only. AI must not approve, certify, decide
  * entitlement, or impersonate a registered Professional Quantity Surveyor.
@@ -26,6 +27,7 @@ import { StateEngineService } from '../state-engine/state-engine.service';
 import { SecurityEngineService } from '../security/security.service';
 import { ApprovalTaskCreator } from '../approval/approval-task.creator';
 import { ArtifactService }     from '../artifact/artifact.service';
+import { ExecutionQueueService } from '../queue/execution-queue.service';
 import { buildRealNodeResolver } from './real-nodes';
 import { runWorkflow } from '@lados/execution-engine';
 import type { QSWorkflowDefinition } from '@lados/shared-types';
@@ -48,9 +50,9 @@ export class ExecutionService implements OnModuleInit {
     private readonly security: SecurityEngineService,
     private readonly approvalTaskCreator: ApprovalTaskCreator,
     private readonly artifactService: ArtifactService,
+    private readonly executionQueue: ExecutionQueueService,
   ) {
-    // Build once — injects services so real nodes can resolve files, library, AI, documents,
-    // notifications, resources, event bus, state engine, foundation pack, and artifacts.
+    // nodeResolver used only for in-process fallback (no Redis) and executeNodeAction.
     this.nodeResolver = buildRealNodeResolver(
       this.fileService,
       this.libraryService,
@@ -151,23 +153,33 @@ export class ExecutionService implements OnModuleInit {
       payload:    { runId, workflowName: workflow.name, triggerType: 'manual' },
     });
 
-    // Phase 1: fire-and-forget — return runId immediately, execute in background
-    const runOptions = {
-      executionId:    runId,
-      workflowId,
-      projectId:      workflow.project_id as string,
-      organizationId: project.organization_id as string,
-      skipNodes:      dto.skipNodes ?? [],
-      userId,
-      definition,
-      inputs:         dto.inputs ?? {},
-      variables:      dto.variables ?? {},
-      nodeResolver:   this.nodeResolver,
-    };
-
-    this._executeAndPersist(runId, workflow, project, runOptions).catch((err: unknown) => {
-      console.error(`[ExecutionService] Background run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`);
-    });
+    // Phase 12: enqueue via BullMQ (falls back to in-process if Redis not available)
+    if (this.executionQueue.isAvailable) {
+      await this.executionQueue.enqueueTrigger({
+        runId,
+        workflowId,
+        projectId:  workflow.project_id as string,
+        orgId:      project.organization_id as string,
+        userId,
+      });
+    } else {
+      // In-process fallback (dev without Redis)
+      const runOptions = {
+        executionId:    runId,
+        workflowId,
+        projectId:      workflow.project_id as string,
+        organizationId: project.organization_id as string,
+        skipNodes:      dto.skipNodes ?? [],
+        userId,
+        definition,
+        inputs:         dto.inputs ?? {},
+        variables:      dto.variables ?? {},
+        nodeResolver:   this.nodeResolver,
+      };
+      this._executeAndPersist(runId, workflow, project, runOptions).catch((err: unknown) => {
+        console.error(`[ExecutionService] Fallback run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
 
     return { runId, status: 'running' };
   }
@@ -229,32 +241,46 @@ export class ExecutionService implements OnModuleInit {
 
     const definition = (run['workflow_snapshot'] ?? workflow?.['definition']) as QSWorkflowDefinition;
 
-    const resumeOptions = {
-      executionId:    runId,
-      workflowId:     run['workflow_id'] as string,
-      projectId:      run['project_id'] as string,
-      organizationId: run['organization_id'] as string,
-      userId,
-      definition,
-      inputs:         (run['inputs'] ?? {}) as Record<string, unknown>,
-      variables:      {} as Record<string, unknown>,
-      nodeResolver:   this.nodeResolver,
-      resumeFromCheckpoint: {
-        pausedAtNodeId:    run['paused_at_node_id'] as string,
-        checkpointOutputs: (run['checkpoint_outputs'] ?? {}) as Record<string, Record<string, unknown>>,
-        approvalResult: {
-          approved,
-          rejected:        !approved,
-          comments:        comments || (approved ? 'Approved' : 'Rejected'),
-          approvalTaskId,
-          decidedBy:       userId,
-        },
+    const resumeFromCheckpoint = {
+      pausedAtNodeId:    run['paused_at_node_id'] as string,
+      checkpointOutputs: (run['checkpoint_outputs'] ?? {}) as Record<string, Record<string, unknown>>,
+      approvalResult: {
+        approved,
+        rejected:        !approved,
+        comments:        comments || (approved ? 'Approved' : 'Rejected'),
+        approvalTaskId,
+        decidedBy:       userId,
       },
     };
 
-    this._executeAndPersist(runId, workflow, project, resumeOptions).catch((err: unknown) => {
-      console.error(`[ExecutionService] Resume run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`);
-    });
+    // Phase 12: re-enqueue via BullMQ (falls back to in-process if Redis not available)
+    if (this.executionQueue.isAvailable) {
+      await this.executionQueue.enqueueResume({
+        runId,
+        workflowId:  run['workflow_id'] as string,
+        projectId:   run['project_id'] as string,
+        orgId:       run['organization_id'] as string,
+        userId,
+        resumeFromCheckpoint,
+      });
+    } else {
+      // In-process fallback
+      const resumeOptions = {
+        executionId:    runId,
+        workflowId:     run['workflow_id'] as string,
+        projectId:      run['project_id'] as string,
+        organizationId: run['organization_id'] as string,
+        userId,
+        definition,
+        inputs:         (run['inputs'] ?? {}) as Record<string, unknown>,
+        variables:      {} as Record<string, unknown>,
+        nodeResolver:   this.nodeResolver,
+        resumeFromCheckpoint,
+      };
+      this._executeAndPersist(runId, workflow, project, resumeOptions).catch((err: unknown) => {
+        console.error(`[ExecutionService] Fallback resume ${runId} threw: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
 
     return { runId, status: 'running', resumed: true };
   }
@@ -513,25 +539,35 @@ export class ExecutionService implements OnModuleInit {
       payload:    { runId, workflowName: workflow['name'], triggerType: 'event' },
     });
 
-    const runOptions = {
-      executionId:    runId,
-      workflowId,
-      projectId:      workflow['project_id'] as string,
-      organizationId: orgId,
-      userId:         actorId,
-      definition,
-      inputs:         inputs ?? {},
-      variables:      {} as Record<string, unknown>,
-      nodeResolver:   this.nodeResolver,
-    };
-
-    this._executeAndPersist(runId, workflow, { organization_id: orgId }, runOptions).catch(
-      (err: unknown) => {
-        console.error(
-          `[ExecutionService] Event-triggered run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      },
-    );
+    // Phase 12: enqueue (falls back to in-process if Redis not available)
+    if (this.executionQueue.isAvailable) {
+      await this.executionQueue.enqueueTrigger({
+        runId,
+        workflowId,
+        projectId:  workflow['project_id'] as string,
+        orgId,
+        userId:     actorId,
+      });
+    } else {
+      const runOptions = {
+        executionId:    runId,
+        workflowId,
+        projectId:      workflow['project_id'] as string,
+        organizationId: orgId,
+        userId:         actorId,
+        definition,
+        inputs:         inputs ?? {},
+        variables:      {} as Record<string, unknown>,
+        nodeResolver:   this.nodeResolver,
+      };
+      this._executeAndPersist(runId, workflow, { organization_id: orgId }, runOptions).catch(
+        (err: unknown) => {
+          console.error(
+            `[ExecutionService] Event-triggered fallback run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        },
+      );
+    }
   }
 
   // ── Direct node execution (inline actions) ─────────────────────────────────

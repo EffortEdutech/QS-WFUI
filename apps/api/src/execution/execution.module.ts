@@ -11,6 +11,7 @@ import { ArtifactModule } from '../artifact/artifact.module';
 // AiModule, NotificationModule, DocumentModule, EventBusModule are @Global() — available via global scope.
 // Phase 7:  ApprovalCoreModule provides ApprovalTaskCreator (no circular dep with ExecutionModule).
 // Phase 9C: ArtifactModule provides ArtifactService for artifact.write / artifact.read nodes.
+// Phase 12: QueueModule is @Global() — ExecutionQueueService injected from global scope.
 
 @Module({
   imports: [FileModule, LibraryModule, ResourceModule, StateEngineModule, ApprovalCoreModule, ArtifactModule],

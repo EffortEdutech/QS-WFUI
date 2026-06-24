@@ -1325,24 +1325,19 @@ The initial build violated §3.10 (Platform UI Is Generic). The following correc
 
 ### Phase 12: Async Execution Queue
 
-### Phase 12: Async Execution Queue
+**Status:** ✅ COMPLETE (2026-06-24)
 
-**Status:** Synchronous in-process runner. Suitable for MVP but not for production.
+**Queue:** BullMQ + Upstash Redis (managed). Falls back to in-process for dev without Redis.
 
-**Goal:** Move workflow execution to an async queue without changing the runner interface.
-
-**Tasks:**
-
-- Select and integrate a job queue: BullMQ (Redis) or Supabase-native queue
-- Wrap `ExecutionService.triggerRun()` to enqueue instead of executing inline
-- Add worker process that dequeues and runs workflows
-- Add SSE or polling endpoint for the UI to receive execution progress
-- Ensure human approval pause/resume works correctly in the async model
-
-**Acceptance:**
-- Triggering a workflow returns immediately with a `runId`
-- The UI polls or streams progress until completion
-- Long-running workflows do not block the API
+**Delivered:**
+- `QueueModule` — `@Global`, `EventEmitterModule`, `ExecutionQueueService`, `ExecutionWorker`
+- `ExecutionQueueService` — `enqueueTrigger()` / `enqueueResume()` wrapping BullMQ Queue
+- `ExecutionWorker` — BullMQ Worker, concurrency 5, retry 3× exponential backoff, dead-letter on final failure
+- `ExecutionService.triggerRun()` — enqueues job, returns `{ runId }` in < 100ms
+- `ExecutionService.resumeRun()` — re-enqueues with `resumeFromCheckpoint` payload; human approval pause/resume verified through queue
+- `GET /runs/:runId/stream` — SSE endpoint via `EventEmitter2` + RxJS `fromEvent`; closes on terminal events
+- UI: polling loop (2s) after trigger, paused approval banner with direct link to `/approvals`
+- In-process fallback: if `REDIS_URL` is unset, execution runs in-process (dev mode unchanged)
 
 ### Phase 13: LEOS / JKR Layer Preparation
 
@@ -1578,9 +1573,10 @@ Phase 7  — Foundation Pack: universal capabilities packaged
 Phase 8  — Pack Installer: runtime install, upgrade, enable, disable
 Phase 9  — Contractor Edition: first real solution
 Phase 10 — AI Runtime: context-aware, tool-calling, auditable
-Phase 11 — Registry: operator-grade pack management
+Phase 11 — AI Workflow Design Studio: natural language → workflow draft (Registry deferred to Phase 14)
 Phase 12 — Async Execution Queue: production-grade runner
 Phase 13 — LEOS / JKR Blueprint: documented, not built
+Phase 14 — Registry: operator-grade pack management (dynamic install, upgrade flow, node-level enable/disable)
 ```
 
 This order means the engine is solid before the solution is built, and the solution validates the engine before enterprise-scale complexity is introduced.

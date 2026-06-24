@@ -232,7 +232,8 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     }
 
     try {
-      const res = await apiClient.post<RunSummary>(
+      // Phase 12: trigger returns immediately with runId (async queue)
+      const res = await apiClient.post<{ runId: string; status: string }>(
         `/workflows/${workflowId}/run`,
         { inputs },
       );
@@ -243,14 +244,46 @@ export default function WorkflowEditorPage({ params }: PageProps) {
         return;
       }
 
-      const summary = res.data;
-      setRunSummary(summary);
+      const { runId } = res.data;
 
-      const logsRes = await apiClient.get<NodeLog[]>(`/runs/${summary.runId}/logs`);
-      setRunLogs(logsRes.data ?? []);
+      // Poll every 2s until terminal state (completed / failed / paused)
+      const TERMINAL = new Set(['completed', 'failed', 'paused']);
+      const MAX_POLLS = 150; // 5 minutes max
+      let polls = 0;
+
+      const poll = async (): Promise<void> => {
+        polls++;
+        if (polls > MAX_POLLS) {
+          setRunError('Run timed out waiting for completion');
+          setRunning(false);
+          return;
+        }
+
+        const runRes = await apiClient.get<RunSummary>(`/runs/${runId}`);
+        if (!runRes.success || !runRes.data) {
+          setRunError('Could not fetch run status');
+          setRunning(false);
+          return;
+        }
+
+        const run = runRes.data;
+        setRunSummary(run);
+
+        if (TERMINAL.has(run.status)) {
+          // Run finished — fetch final logs
+          const logsRes = await apiClient.get<NodeLog[]>(`/runs/${runId}/logs`);
+          setRunLogs(logsRes.data ?? []);
+          setRunning(false);
+          return;
+        }
+
+        // Still running — poll again after 2s
+        setTimeout(() => void poll(), 2000);
+      };
+
+      void poll();
     } catch (err: unknown) {
       setRunError(err instanceof Error ? err.message : 'Unexpected error');
-    } finally {
       setRunning(false);
     }
   }
@@ -455,6 +488,23 @@ export default function WorkflowEditorPage({ params }: PageProps) {
             <div className="absolute bottom-4 left-4 right-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center gap-2">
               <span>⚠ {runError}</span>
               <button onClick={() => setRunError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
+
+          {/* Phase 12: paused-for-approval banner */}
+          {runSummary?.status === 'paused' && (
+            <div className="absolute bottom-4 left-4 right-4 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-center gap-3 shadow-md z-10">
+              <span className="text-lg">⏸</span>
+              <span className="flex-1">
+                <strong>Workflow paused</strong> — waiting for human approval.
+              </span>
+              <Link
+                href="/approvals"
+                className="px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700 transition-colors"
+              >
+                Go to Approvals →
+              </Link>
+              <button onClick={() => setRunSummary(null)} className="text-amber-400 hover:text-amber-600">✕</button>
             </div>
           )}
 

@@ -27,6 +27,7 @@ import { EventBusModule } from './event-bus/event-bus.module';
 import { StateEngineModule } from './state-engine/state-engine.module';
 import { SecurityModule } from './security/security.module';
 import { PackModule } from './pack/pack.module';
+import { QueueModule } from './queue/queue.module';
 import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
@@ -62,6 +63,7 @@ import { MulterModule } from '@nestjs/platform-express';
     StateEngineModule,    // Phase 5  — Configurable state machines + transition guards
     SecurityModule,       // Phase 6  — Security Engine: RBAC + API keys (@Global)
     PackModule,           // Phase 8  — Pack Registry + Installer (enable/disable/sync)
+    QueueModule,          // Phase 12 — BullMQ async execution queue (@Global)
     MulterModule.register({ dest: '/tmp/uploads' }),  // in-memory buffer preferred
   ],
 })
