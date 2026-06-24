@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>LEOS &sol; JKR &mdash; Deferred Blueprint</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <span id="markdown-mermaid" aria-hidden="true" data-config="{&quot;darkModeTheme&quot;:&quot;vscode&quot;,&quot;lightModeTheme&quot;:&quot;vscode&quot;,&quot;maxTextSize&quot;:50000,&quot;clickDrag&quot;:&quot;alt&quot;,&quot;showControls&quot;:&quot;onHoverOrFocus&quot;,&quot;resizable&quot;:true,&quot;maxHeight&quot;:&quot;&quot;}"></span>
+				<h1 id="leos--jkr--deferred-blueprint">LEOS / JKR — Deferred Blueprint</h1>
+<p><strong>Version:</strong> 1.0<br>
+<strong>Date:</strong> 2026-06-24<br>
+<strong>Phase:</strong> Phase 13 — LEOS/JKR Layer Preparation<br>
+<strong>Status:</strong> LOCKED — no code changes required to LCE V1 engine</p>
+<blockquote>
+<p>This document is a design contract, not a build plan. It confirms that LCE V1 can represent everything LEOS needs without structural changes. When the Phase 13 gate is reached (Contractor Edition in production, at least one JKR/CIDB stakeholder confirmed), build begins from this document.</p>
+</blockquote>
+<hr>
+<h2 id="1-what-this-document-confirms">1. What This Document Confirms</h2>
+<p>Phase 13 answers five questions:</p>
+<ol>
+<li>Can <code>lados_resources</code> represent all LEOS resource types? <strong>Yes — confirmed.</strong></li>
+<li>Can <code>lados_state_machines</code> represent all LEOS lifecycles? <strong>Yes — confirmed.</strong></li>
+<li>Does the pack system accommodate 300+ workflows without engine changes? <strong>Yes — confirmed.</strong></li>
+<li>Is multi-tier org hierarchy (JKR federal → state → district) achievable without schema surgery? <strong>Yes — one column addition, no engine changes.</strong></li>
+<li>Does <code>qs-pack</code> need to be rebuilt for LEOS? <strong>No — it becomes a dependency, not a replacement.</strong></li>
+</ol>
+<p>No engine schema changes are required. All LEOS resource types, state machines, and packs fit the LCE V1 model as designed.</p>
+<hr>
+<h2 id="2-leos-resource-type-catalogue">2. LEOS Resource Type Catalogue</h2>
+<h3 id="21-confirmed-mapping">2.1 Confirmed Mapping</h3>
+<p>Every LEOS resource type stores in <code>lados_resources</code> using the existing schema:</p>
+<pre><code>lados_resources
+  id              uuid
+  organisation_id uuid       ← LEOS uses same multi-tenant column
+  project_id      uuid       ← optional: some LEOS resources are programme-level
+  type            text       ← resource type string (new values — no schema change)
+  state           text       ← current lifecycle state
+  data            jsonb      ← all type-specific fields live here
+  created_by      uuid
+  created_at      timestamptz
+  updated_at      timestamptz
+</code></pre>
+<p>The <code>type</code> column is a free-text string with no DB constraint — adding new LEOS types requires zero migration.</p>
+<h3 id="22-programme-layer">2.2 Programme Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Programme</td>
+<td><code>leos.programme</code></td>
+<td>name, code, budget, start_date, end_date, sponsoring_agency</td>
+<td>Top-level JKR initiative (e.g. Pan Borneo Highway)</td>
+</tr>
+<tr>
+<td>Contract</td>
+<td><code>leos.contract</code></td>
+<td>contract_no, contractor_id, contract_sum, LOA_date, programme_id</td>
+<td>Formal LOA/SPK</td>
+</tr>
+<tr>
+<td>Package</td>
+<td><code>leos.package</code></td>
+<td>package_no, description, contract_id, budget_allocation</td>
+<td>Scope subdivision</td>
+</tr>
+<tr>
+<td>Milestone</td>
+<td><code>leos.milestone</code></td>
+<td>label, target_date, actual_date, contract_id, criteria</td>
+<td>Key delivery events</td>
+</tr>
+<tr>
+<td>Variation Order</td>
+<td><code>leos.variation_order</code></td>
+<td>vo_no, type, description, amount, contract_id, reason</td>
+<td>Scope/price changes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-site-layer">2.3 Site Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Site Location</td>
+<td><code>leos.site_location</code></td>
+<td>name, gps_boundary, contract_id</td>
+<td>GPS-bounded zone</td>
+</tr>
+<tr>
+<td>Site Diary</td>
+<td><code>leos.site_diary</code></td>
+<td>date, weather, workforce_count, activities, supervisor_id, site_id</td>
+<td>Daily record</td>
+</tr>
+<tr>
+<td>NCR</td>
+<td><code>leos.ncr</code></td>
+<td>ncr_no, description, raised_by, assigned_to, site_id, photos</td>
+<td>Non-conformance report</td>
+</tr>
+<tr>
+<td>RFI</td>
+<td><code>leos.rfi</code></td>
+<td>rfi_no, question, raised_by, routed_to, contract_id</td>
+<td>Request for information</td>
+</tr>
+<tr>
+<td>Submittal</td>
+<td><code>leos.submittal</code></td>
+<td>submittal_no, type, description, submitted_by, contract_id</td>
+<td>Material/method submission</td>
+</tr>
+<tr>
+<td>Inspection Record</td>
+<td><code>leos.inspection</code></td>
+<td>date, inspector_id, site_id, outcome, defects, photos</td>
+<td>Site inspection</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-financial-layer">2.4 Financial Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BOQ</td>
+<td><code>leos.boq</code></td>
+<td>contract_id, items (jsonb array), revision_no</td>
+<td>Bill of Quantities</td>
+</tr>
+<tr>
+<td>Progress Claim</td>
+<td><code>leos.progress_claim</code></td>
+<td>claim_no, period, contractor_id, contract_id, items, total</td>
+<td>Monthly valuation</td>
+</tr>
+<tr>
+<td>Interim Certificate</td>
+<td><code>leos.interim_certificate</code></td>
+<td>cert_no, claim_id, certified_amount, qs_id, issued_date</td>
+<td>QS-certified payment</td>
+</tr>
+<tr>
+<td>Final Certificate</td>
+<td><code>leos.final_certificate</code></td>
+<td>cert_no, contract_id, final_sum, qs_id, director_id</td>
+<td>Final settlement</td>
+</tr>
+<tr>
+<td>Retention Release</td>
+<td><code>leos.retention_release</code></td>
+<td>contract_id, amount, release_type (half/full), authorised_by</td>
+<td></td>
+</tr>
+<tr>
+<td>Payment Certificate</td>
+<td><code>leos.payment_certificate</code></td>
+<td>cert_no, interim_cert_id, amount, finance_officer_id</td>
+<td>Payment authorisation</td>
+</tr>
+<tr>
+<td>Variation Account</td>
+<td><code>leos.variation_account</code></td>
+<td>contract_id, total_vos, approved_sum</td>
+<td>Consolidated VO account</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-compliance-layer">2.5 Compliance Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CIDB Worker Record</td>
+<td><code>leos.cidb_worker</code></td>
+<td>name, ic_no, cidb_no, category, expiry, photo_url, site_id</td>
+<td>Green card validation</td>
+</tr>
+<tr>
+<td>HIRARC</td>
+<td><code>leos.hirarc</code></td>
+<td>activity, hazards (jsonb), risk_level, controls, reviewed_by</td>
+<td>Risk assessment</td>
+</tr>
+<tr>
+<td>Accident Record</td>
+<td><code>leos.accident</code></td>
+<td>date, description, injured_parties, severity, DOSH_ref, site_id</td>
+<td></td>
+</tr>
+<tr>
+<td>DLP Defect</td>
+<td><code>leos.dlp_defect</code></td>
+<td>defect_no, description, location, contract_id, deadline</td>
+<td>Defects Liability Period</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-closure-layer">2.6 Closure Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPC</td>
+<td><code>leos.cpc</code></td>
+<td>contract_id, issued_date, certifying_officer, cpc_no</td>
+<td>Certificate of Practical Completion</td>
+</tr>
+<tr>
+<td>Final Account</td>
+<td><code>leos.final_account</code></td>
+<td>contract_id, original_sum, vo_total, final_sum, qs_id</td>
+<td>Final financial settlement</td>
+</tr>
+<tr>
+<td>Archive Record</td>
+<td><code>leos.archive</code></td>
+<td>contract_id, documents (jsonb), archived_by, archive_date</td>
+<td>Long-term retention</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-people-layer">2.7 People Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Resource Type</th>
+<th><code>type</code> value</th>
+<th>Key <code>data</code> fields</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Consultant</td>
+<td><code>leos.consultant</code></td>
+<td>name, firm, role, contract_id, accreditation</td>
+<td>External consultants</td>
+</tr>
+<tr>
+<td>Subcontractor</td>
+<td><code>leos.subcontractor</code></td>
+<td>name, reg_no, grade, specialisation, contract_id</td>
+<td></td>
+</tr>
+<tr>
+<td>Inspector</td>
+<td><code>leos.inspector</code></td>
+<td>name, cidb_ref, site_id, assigned_by</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total LEOS resource types: 26</strong><br>
+<strong>Engine schema changes required: 0</strong><br>
+<strong>Confirmation: all 26 types fit <code>lados_resources.type</code> as new string values with type-specific fields in <code>data</code> jsonb.</strong></p>
+<hr>
+<h2 id="3-leos-state-machine-catalogue">3. LEOS State Machine Catalogue</h2>
+<h3 id="31-confirmed-mapping">3.1 Confirmed Mapping</h3>
+<p>All LEOS lifecycles store in <code>lados_state_machines</code>:</p>
+<pre><code>lados_state_machines
+  id          uuid
+  name        text          ← e.g. 'leos.contract'
+  states      jsonb         ← array of state definitions
+  transitions jsonb         ← allowed transitions with guards
+  created_at  timestamptz
+</code></pre>
+<p>No schema changes. New state machines are inserted as rows.</p>
+<h3 id="32-core-lifecycles">3.2 Core Lifecycles</h3>
+<p><strong>Contract</strong></p>
+<pre><code>Draft → Awarded → Active → Suspended → Completed → Archived
+                         ↑___________↓ (Suspend ↔ Active)
+</code></pre>
+<p>Terminal states: <code>Completed</code>, <code>Archived</code><br>
+Key guards: <code>Active → Completed</code> requires CPC to exist and be in state <code>issued</code></p>
+<hr>
+<p><strong>Progress Claim</strong></p>
+<pre><code>Draft → Submitted → Under Review → Certified → Payment Authorised → Paid
+                                ↘ Disputed → Under Review (loop)
+</code></pre>
+<p>Terminal states: <code>Paid</code>, <code>Disputed</code> (if unresolved after deadline)<br>
+Key guards: <code>Under Review → Certified</code> requires QS role; <code>Certified → Payment Authorised</code> requires Finance Officer role</p>
+<hr>
+<p><strong>Interim / Final Certificate</strong></p>
+<pre><code>Draft → Issued → Acknowledged → Paid
+      ↘ Void (admin cancel)
+</code></pre>
+<p>Key guards: <code>Draft → Issued</code> requires QS role with <code>qs.certify_interim</code> permission</p>
+<hr>
+<p><strong>NCR</strong></p>
+<pre><code>Raised → Assigned → In Progress → Resolved → Closed
+                               ↘ Escalated → Raised (re-open)
+</code></pre>
+<p>Terminal states: <code>Closed</code><br>
+Key guards: <code>Resolved → Closed</code> requires inspector sign-off</p>
+<hr>
+<p><strong>RFI</strong></p>
+<pre><code>Submitted → Acknowledged → Under Review → Responded → Closed
+</code></pre>
+<p>Terminal states: <code>Closed</code></p>
+<hr>
+<p><strong>Submittal</strong></p>
+<pre><code>Submitted → Under Review → Approved → Superseded
+                        ↘ Rejected → Resubmitted → Under Review (loop)
+</code></pre>
+<hr>
+<p><strong>Site Diary</strong></p>
+<pre><code>Draft → Submitted → Reviewed → Archived
+</code></pre>
+<p>Terminal state: <code>Archived</code> (immutable after PM review)</p>
+<hr>
+<p><strong>Variation Order</strong></p>
+<pre><code>Proposed → Under Evaluation → Approved → Instructed → Completed
+                           ↘ Rejected (terminal)
+</code></pre>
+<p>Key guards: <code>Under Evaluation → Approved</code> requires Director role</p>
+<hr>
+<p><strong>CPC</strong></p>
+<pre><code>Draft → Issued → Acknowledged
+</code></pre>
+<p>Terminal state: <code>Acknowledged</code> (triggers DLP clock)</p>
+<hr>
+<p><strong>CIDB Worker Record</strong></p>
+<pre><code>Pending Verification → Active → Expired → Renewed
+                              ↘ Suspended → Reinstated
+</code></pre>
+<hr>
+<p><strong>DLP Defect</strong></p>
+<pre><code>Raised → Assigned → Rectified → Inspected → Cleared
+                             ↘ Rejected → Assigned (loop)
+</code></pre>
+<p>Terminal state: <code>Cleared</code></p>
+<hr>
+<p><strong>Final Account</strong></p>
+<pre><code>Draft → Under Audit → Agreed → Approved → Closed
+                   ↘ Disputed → Under Audit (loop)
+</code></pre>
+<p><strong>Total LEOS state machines: 12</strong><br>
+<strong>Engine schema changes required: 0</strong><br>
+<strong>Confirmation: all 12 machines fit <code>lados_state_machines</code> as new rows, using the existing states/transitions jsonb structure.</strong></p>
+<hr>
+<h2 id="4-leos-pack-architecture">4. LEOS Pack Architecture</h2>
+<h3 id="41-pack-dependency-tree">4.1 Pack Dependency Tree</h3>
+<pre><code>lados (core engine)
+├── core-pack              (resource CRUD, events, approvals, artifacts)
+├── foundation-pack        (notifications, approvals, user assignments)
+├── contractor-pack        (jobs, trips, fuel receipts, invoices)
+│   └── qs-pack            (BOQ, RFQ, classifications) ← existing, unchanged
+│       └── leos-procurement-pack    (tender, contract award, VO management)
+│           ├── leos-core-pack       (programme, org hierarchy, milestones)
+│           ├── leos-site-pack       (NCR, RFI, submittal, site diary)
+│           ├── leos-finance-pack    (claims, certificates, payment, retention)
+│           ├── leos-closure-pack    (CPC, DLP, final account, archive)
+│           └── leos-compliance-pack (CIDB, HIRARC, accident records)
+</code></pre>
+<h3 id="42-pack-specifications">4.2 Pack Specifications</h3>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>Namespace</th>
+<th>Estimated Nodes</th>
+<th>Estimated Workflows</th>
+<th>Depends On</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>leos-core-pack</code></td>
+<td><code>leos.core</code></td>
+<td>25–35</td>
+<td>15–20</td>
+<td>core-pack, foundation-pack</td>
+</tr>
+<tr>
+<td><code>leos-procurement-pack</code></td>
+<td><code>leos.procurement</code></td>
+<td>40–60</td>
+<td>50–70</td>
+<td>leos-core-pack, qs-pack</td>
+</tr>
+<tr>
+<td><code>leos-site-pack</code></td>
+<td><code>leos.site</code></td>
+<td>30–40</td>
+<td>40–60</td>
+<td>leos-core-pack</td>
+</tr>
+<tr>
+<td><code>leos-finance-pack</code></td>
+<td><code>leos.finance</code></td>
+<td>35–50</td>
+<td>60–80</td>
+<td>leos-procurement-pack</td>
+</tr>
+<tr>
+<td><code>leos-closure-pack</code></td>
+<td><code>leos.closure</code></td>
+<td>20–30</td>
+<td>25–35</td>
+<td>leos-finance-pack</td>
+</tr>
+<tr>
+<td><code>leos-compliance-pack</code></td>
+<td><code>leos.compliance</code></td>
+<td>20–30</td>
+<td>20–30</td>
+<td>leos-core-pack</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td></td>
+<td><strong>170–245</strong></td>
+<td><strong>210–295</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>With contractor-pack and qs-pack included: <strong>300–400 total workflows across full LEOS stack.</strong></p>
+<h3 id="43-pack-contract-confirmation">4.3 Pack Contract Confirmation</h3>
+<p>Every LEOS pack will implement the same <code>PackManifest + resolveNode()</code> contract as <code>contractor-pack</code>:</p>
+<pre><code class="language-typescript"><span class="hljs-comment">// Same interface — no SDK changes needed</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-attr">manifest</span>: <span class="hljs-title class_">PackManifest</span> = {
+  <span class="hljs-attr">id</span>:           <span class="hljs-string">&#x27;leos.site-pack&#x27;</span>,
+  <span class="hljs-attr">name</span>:         <span class="hljs-string">&#x27;LEOS Site Pack&#x27;</span>,
+  <span class="hljs-attr">version</span>:      <span class="hljs-string">&#x27;1.0.0&#x27;</span>,
+  <span class="hljs-attr">description</span>:  <span class="hljs-string">&#x27;NCR, RFI, submittal, and site diary management&#x27;</span>,
+  <span class="hljs-attr">dependencies</span>: [<span class="hljs-string">&#x27;leos.core-pack&#x27;</span>],
+  <span class="hljs-attr">nodes</span>:        [...],
+  <span class="hljs-attr">resources</span>:    [...],
+  <span class="hljs-attr">stateMachines</span>:[...],
+  <span class="hljs-attr">workflows</span>:    [...],
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">resolveNode</span>(<span class="hljs-params">nodeType: <span class="hljs-built_in">string</span></span>): <span class="hljs-title class_">NodeHandler</span> | <span class="hljs-literal">null</span> { ... }
+</code></pre>
+<p><strong>Pack SDK changes required: 0</strong><br>
+<strong><code>buildRealNodeResolver()</code> changes required: 0</strong> (add new pack calls to the chain)</p>
+<hr>
+<h2 id="5-qs-pack-boundary-validation">5. QS Pack Boundary Validation</h2>
+<h3 id="51-what-qs-pack-does-today">5.1 What qs-pack Does Today</h3>
+<p><code>qs-pack</code> (existing, built, deployed) provides:</p>
+<ul>
+<li><code>qs.classify_item</code> — AI-assisted BOQ line item classification</li>
+<li><code>qs.generate_rfq</code> — RFQ document generation</li>
+<li><code>qs.review_quotation</code> — Quotation comparison and analysis</li>
+<li>Procurement workflow templates</li>
+</ul>
+<h3 id="52-what-leos-procurement-pack-will-add">5.2 What leos-procurement-pack Will Add</h3>
+<p><code>leos-procurement-pack</code> will add:</p>
+<ul>
+<li><code>leos.procurement.create_tender</code> — Formal open/restricted tender process</li>
+<li><code>leos.procurement.evaluate_tender</code> — Tender evaluation committee workflow</li>
+<li><code>leos.procurement.issue_loa</code> — Letter of Award generation and signing</li>
+<li><code>leos.procurement.create_contract</code> — Contract document management</li>
+<li><code>leos.procurement.raise_vo</code> — Variation Order initiation and approval</li>
+</ul>
+<h3 id="53-boundary-rule--no-overlap">5.3 Boundary Rule — No Overlap</h3>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Pack</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BOQ line item AI classification</td>
+<td><code>qs-pack</code></td>
+<td>QS-level tool, reused in LEOS</td>
+</tr>
+<tr>
+<td>RFQ generation and distribution</td>
+<td><code>qs-pack</code></td>
+<td>Direct supplier quotes, SME context</td>
+</tr>
+<tr>
+<td>Formal tender (open/restricted)</td>
+<td><code>leos-procurement-pack</code></td>
+<td>Government procurement regulation</td>
+</tr>
+<tr>
+<td>LOA / SPK contract documents</td>
+<td><code>leos-procurement-pack</code></td>
+<td>LEOS-specific legal documents</td>
+</tr>
+<tr>
+<td>Variation Order lifecycle</td>
+<td><code>leos-procurement-pack</code></td>
+<td>Requires Director approval chain</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ruling: <code>qs-pack</code> is a dependency of <code>leos-procurement-pack</code>, not replaced by it.</strong><br>
+<code>leos-procurement-pack.json</code> manifest: <code>&quot;dependencies&quot;: [&quot;qs-pack&quot;]</code></p>
+<p><strong>qs-pack rebuild required: No.</strong><br>
+<strong>qs-pack node changes required: No.</strong><br>
+<strong>qs-pack becomes a reused component in the LEOS stack as-is.</strong></p>
+<hr>
+<h2 id="6-multi-tier-organisation-hierarchy">6. Multi-Tier Organisation Hierarchy</h2>
+<h3 id="61-jkr-org-structure">6.1 JKR Org Structure</h3>
+<pre><code>Federal Ministry (KKR)
+  └── JKR Headquarters (Federal)
+        └── JKR Negeri (State — 14 states + territories)
+              └── JKR Daerah (District — 80+ districts)
+                    └── Project Team (per contract)
+</code></pre>
+<h3 id="62-current-model">6.2 Current Model</h3>
+<p>The current <code>organisations</code> table is flat — no parent relationship. Each organisation is independent with its own members and projects.</p>
+<h3 id="63-required-extension-deferred--not-phase-13">6.3 Required Extension (Deferred — Not Phase 13)</h3>
+<p>One column addition, no engine restructure:</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- Migration: add parent_org_id to organisations</span>
+<span class="hljs-keyword">ALTER</span> <span class="hljs-keyword">TABLE</span> organisations
+  <span class="hljs-keyword">ADD</span> <span class="hljs-keyword">COLUMN</span> parent_org_id uuid <span class="hljs-keyword">REFERENCES</span> organisations(id);
+
+<span class="hljs-keyword">CREATE</span> INDEX idx_organisations_parent <span class="hljs-keyword">ON</span> organisations(parent_org_id);
+</code></pre>
+<h3 id="64-permission-inheritance-design">6.4 Permission Inheritance Design</h3>
+<p>SecurityEngine extends to support hierarchy traversal:</p>
+<pre><code>Rule: A user with role X in org A inherits read access to all child orgs of A.
+      Write/manage permissions do NOT propagate down by default.
+      Explicit grants override inherited read.
+</code></pre>
+<p>Example: A JKR Federal PM can view all State and District projects. A State QS can only manage their own state's contracts.</p>
+<h3 id="65-confirmation">6.5 Confirmation</h3>
+<ul>
+<li>No <code>SecurityEngineService</code> rewrite needed — hierarchy check is additive</li>
+<li>No <code>lados_resources</code> schema changes — <code>organisation_id</code> already exists</li>
+<li><code>buildRealNodeResolver()</code> unchanged — nodes already receive <code>orgId</code> in context</li>
+<li>This is a <strong>Phase 15+ item</strong> — not required for Contractor Edition or initial LEOS build</li>
+</ul>
+<p><strong>Blockers to multi-tier hierarchy: 0</strong><br>
+<strong>Schema surgery required: 0 (one column addition when needed)</strong></p>
+<hr>
+<h2 id="7-items-that-do-require-engine-changes">7. Items That DO Require Engine Changes</h2>
+<p>After analysis, the following items require changes that are <strong>not part of LCE V1</strong> and must be planned separately:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Scope</th>
+<th>Why Deferred</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>parent_org_id</code> column on <code>organisations</code></td>
+<td>Single migration</td>
+<td>Needed only when LEOS org hierarchy is activated</td>
+</tr>
+<tr>
+<td><code>lados_events</code> volume at LEOS scale</td>
+<td>Redis Streams or message broker</td>
+<td>Current in-process EventBus sufficient for Contractor Edition; at 10k+ events/day a broker is needed</td>
+</tr>
+<tr>
+<td><code>lados_resources</code> partitioning</td>
+<td>Supabase table partitioning by <code>organisation_id</code></td>
+<td>Only relevant at 1M+ resource rows</td>
+</tr>
+<tr>
+<td>Court-admissible audit record sealing</td>
+<td>Cryptographic hash chain on <code>audit_log</code></td>
+<td>Phase 15+ governance requirement</td>
+</tr>
+<tr>
+<td>BIM/IFC integration</td>
+<td>New pack + file parsing</td>
+<td>Not part of initial LEOS scope</td>
+</tr>
+<tr>
+<td>GIS geofencing</td>
+<td>PostGIS extension + new pack</td>
+<td>Required for site boundary enforcement</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LCE V1 engine blockers: 0</strong><br>
+These are evolution items, not showstoppers. LEOS Phase 1 (core + procurement + finance) can be built entirely on LCE V1 without touching the engine.</p>
+<hr>
+<h2 id="8-scale-validation">8. Scale Validation</h2>
+<h3 id="81-pack-count-vs-pack-loader-performance">8.1 Pack Count vs Pack Loader Performance</h3>
+<p><code>PackInstallerService</code> currently loads all packs synchronously on startup. At full LEOS scale:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Contractor Edition</th>
+<th>LEOS Full Stack</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Packs</td>
+<td>5</td>
+<td>11</td>
+</tr>
+<tr>
+<td>Total nodes</td>
+<td>~150</td>
+<td>~400</td>
+</tr>
+<tr>
+<td>Startup sync time</td>
+<td>&lt; 500ms</td>
+<td>&lt; 2s (estimated)</td>
+</tr>
+</tbody>
+</table>
+<p>Verdict: <strong>No performance concern.</strong> Pack loader is O(n) on node count, not on workflow count. 300+ workflows are templates stored in the DB — they don't affect startup.</p>
+<h3 id="82-buildrealnoderesolver-at-400-nodes">8.2 <code>buildRealNodeResolver()</code> at 400 Nodes</h3>
+<p><code>buildRealNodeResolver()</code> is a chain of <code>if / else if</code> checks per pack. At 400 nodes this remains O(1) per resolution (string match). No refactor needed.</p>
+<h3 id="83-state-engine-at-12-state-machines">8.3 State Engine at 12+ State Machines</h3>
+<p><code>StateEngineService</code> loads state machines from DB on each transition call (no in-memory cache). At LEOS scale with 100s of concurrent transitions, caching becomes worthwhile. Deferred — not a Phase 13 item.</p>
+<hr>
+<h2 id="9-estimated-build-programme-not-phase-13--reference-only">9. Estimated Build Programme (Not Phase 13 — Reference Only)</h2>
+<p>When LEOS build begins (after Phase 13 gate):</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Content</th>
+<th>Estimate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LEOS Phase 1</td>
+<td>leos-core-pack: programme, contract, milestone</td>
+<td>2–3 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 2</td>
+<td>leos-procurement-pack: tender, LOA, VO</td>
+<td>3–4 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 3</td>
+<td>leos-finance-pack: claims, certificates, payment</td>
+<td>3–4 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 4</td>
+<td>leos-site-pack: NCR, RFI, submittal, site diary</td>
+<td>2–3 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 5</td>
+<td>leos-compliance-pack: CIDB, HIRARC, accidents</td>
+<td>2 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 6</td>
+<td>leos-closure-pack: CPC, DLP, final account</td>
+<td>2 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 7</td>
+<td>Multi-tier org hierarchy + SecurityEngine extension</td>
+<td>1–2 sessions</td>
+</tr>
+<tr>
+<td>LEOS Phase 8</td>
+<td>Programme dashboard + JKR integration connectors</td>
+<td>3–4 sessions</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>18–26 sessions</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="10-phase-gate-checklist">10. Phase Gate Checklist</h2>
+<p>LEOS development begins only when all of the following are true:</p>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox"> Contractor Edition is live with at least one paying contractor</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox"> Phase 14 (Registry Maturity) is complete — pack install/upgrade works without a code deploy</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox"> At least one JKR/CIDB/CITP stakeholder has confirmed initial requirements in writing</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox"> A dedicated LEOS project budget is approved</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox"> A QS consultant is engaged to validate BOQ and certificate workflows against JKR standards</li>
+</ul>
+<hr>
+<h2 id="11-compatibility-statement">11. Compatibility Statement</h2>
+<p>The following LCE V1 design decisions made today are confirmed as LEOS-compatible:</p>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>LEOS Compatibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lados_resources</code> is multi-tenant by <code>organisation_id</code></td>
+<td>✅ LEOS multi-org scoping works as-is</td>
+</tr>
+<tr>
+<td><code>type</code> column is free text with no DB constraint</td>
+<td>✅ New LEOS types require zero migration</td>
+</tr>
+<tr>
+<td><code>data</code> column is <code>jsonb</code></td>
+<td>✅ All 26 LEOS type-specific fields fit here</td>
+</tr>
+<tr>
+<td>State machines are declared in manifests as rows</td>
+<td>✅ 12 new LEOS machines = 12 new rows, no schema change</td>
+</tr>
+<tr>
+<td>Packs follow <code>PackManifest + resolveNode()</code> contract</td>
+<td>✅ All 6 LEOS packs will implement this unchanged</td>
+</tr>
+<tr>
+<td><code>buildRealNodeResolver()</code> is a pack chain</td>
+<td>✅ Extend by adding LEOS pack calls — no rewrite</td>
+</tr>
+<tr>
+<td><code>qs-pack</code> exists and is deployed</td>
+<td>✅ Becomes a dependency of <code>leos-procurement-pack</code></td>
+</tr>
+<tr>
+<td>AI cannot approve or certify</td>
+<td>✅ Rule is permanent — reinforced in all LEOS finance nodes</td>
+</tr>
+<tr>
+<td>Audit log is append-only</td>
+<td>✅ LEOS certificate audit entries are court-admissible design targets</td>
+</tr>
+<tr>
+<td><code>published_version_id</code> locks execution to snapshot</td>
+<td>✅ LEOS cannot allow live-draft execution at scale</td>
+</tr>
+<tr>
+<td>Async queue (Phase 12) is in place</td>
+<td>✅ LEOS workflow volume requires async execution</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="12-acceptance-checklist">12. Acceptance Checklist</h2>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> All LEOS resource types confirmed as representable in <code>lados_resources</code> (26 types, 0 schema changes)</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> All LEOS state machines confirmed as representable in <code>lados_state_machines</code> (12 machines, 0 schema changes)</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> LEOS pack architecture defined — 6 packs, ~230 nodes, ~300 workflows</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> <code>qs-pack</code> boundary validated — dependency, not replacement, no rebuild needed</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> Multi-tier org hierarchy path confirmed — one column addition, no engine surgery</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> Items requiring engine changes identified — 0 blockers, all are evolution items</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> Phase gate checklist defined</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox"> Phase 13 has zero code commits ✅</li>
+</ul>
+<hr>
+<p><em>Phase 13 complete. Next: Phase 14 — Registry: Operator-Grade Pack Management.</em><br>
+<em>Related: <a href="../Lados/50_LEOS.html">50_LEOS.md</a> · <a href="../LCE_V1/Lados_Core_Engine_V1_Implementation_Blueprint.html">LCE Blueprint</a></em></p>
+
+            
+            
+        </body>
+        </html>

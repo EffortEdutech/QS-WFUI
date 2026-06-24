@@ -11,14 +11,15 @@ import AiCommandBar from '@/components/AiCommandBar';
 // Industry-specific data is accessed via /resources?type=<resourceType>.
 // See docs/LCE_V1/Lados_Core_Engine_V1_Implementation_Blueprint.md §3.10
 const NAV = [
-  { href: '/dashboard',          label: 'Dashboard',   icon: '⊞' },
-  { href: '/projects',           label: 'Projects',    icon: '📁' },
-  { href: '/resources',          label: 'Resources',   icon: '🗂️' },
-  { href: '/approvals',          label: 'Approvals',   icon: '✅' },
-  { href: '/suppliers',          label: 'Suppliers',   icon: '🏗️' },
-  { href: '/packs',              label: 'Packs',       icon: '📦' },
-  { href: '/marketplace',        label: 'Marketplace', icon: '🛒' },
-  { href: '/settings/services',  label: 'Services',    icon: '⚙' },
+  { href: '/dashboard',          label: 'Dashboard',    icon: '⊞' },
+  { href: '/projects',           label: 'Projects',     icon: '📁' },
+  { href: '/resources',          label: 'Resources',    icon: '🗂️' },
+  { href: '/approvals',          label: 'Approvals',    icon: '✅' },
+  { href: '/ai',                 label: 'AI Assistant', icon: '🤖' },
+  { href: '/suppliers',          label: 'Suppliers',    icon: '🏗️' },
+  { href: '/packs',              label: 'Packs',        icon: '📦' },
+  { href: '/marketplace',        label: 'Marketplace',  icon: '🛒' },
+  { href: '/settings/services',  label: 'Services',     icon: '⚙' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

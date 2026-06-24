@@ -2,6 +2,8 @@
  * Queue constants — Phase 12: Async Execution Queue
  */
 
+import type { SkipNodeSpec } from '@lados/execution-engine';
+
 export const EXECUTION_QUEUE_NAME = 'lados-execution';
 
 export const EXECUTION_JOB_TYPE = {
@@ -19,6 +21,8 @@ export interface ExecutionJobPayload {
   projectId:    string;
   orgId:        string;
   userId:       string;
+  /** Nodes to skip — merged from dto.skipNodes + org-level pack_node_overrides (converted to instance IDs) */
+  skipNodes?:   SkipNodeSpec[];
   /** Only set on RESUME jobs */
   resumeFromCheckpoint?: {
     pausedAtNodeId:    string;

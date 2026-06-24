@@ -1,18 +1,23 @@
 /**
- * PackController — Phase 8 / Phase 9 Correction
+ * PackController — Phase 8 / Phase 9 Correction / Phase 14 upgrade
  *
- * GET  /packs                      — list all packs with node count + status
- * GET  /packs/resource-views       — aggregated resource type view configs from active packs
- * GET  /packs/:id                  — single pack detail + its nodes
- * GET  /packs/:id/templates        — workflow template list for a pack
- * POST /packs/sync                 — trigger syncAll() (owner/admin only)
- * PATCH /packs/:id/enable          — enable a pack (owner/admin only)
- * PATCH /packs/:id/disable         — disable a pack (owner/admin only)
+ * GET  /packs                                        — list all packs with node count + status
+ * GET  /packs/resource-views                         — aggregated resource type view configs from active packs
+ * GET  /packs/:id                                    — single pack detail + its nodes
+ * GET  /packs/:id/templates                          — workflow template list for a pack
+ * GET  /packs/:id/health                             — Phase 14: pack health check result
+ * GET  /packs/:id/node-overrides                     — Phase 14: list org node overrides for a pack
+ * PATCH /packs/:id/nodes/:nodeType/enable            — Phase 14: enable a node type for an org
+ * PATCH /packs/:id/nodes/:nodeType/disable           — Phase 14: disable a node type for an org
+ * POST /packs/sync                                   — trigger syncAll() (owner/admin only)
+ * PATCH /packs/:id/enable                            — enable a pack (owner/admin only)
+ * PATCH /packs/:id/disable                           — disable a pack (owner/admin only)
  */
 
 import {
   Controller, Get, Post, Patch,
   Param, Query, Request, UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseJwtGuard }      from '../common/guards/supabase-jwt.guard';
 import { SecurityEngineService } from '../security/security.service';
@@ -56,6 +61,83 @@ export class PackController {
     const data = await this.installer.getResourceViews();
     return { success: true, data };
   }
+
+  // ── Phase 14: health + node overrides ────────────────────────────────────
+
+  /**
+   * GET /packs/:id/health
+   *
+   * Returns a real-time health check for the pack — checks each registered
+   * node type against its known prefix. Uses the same prefix-based check
+   * as the startup log, so it's fast and safe to call on demand.
+   *
+   * Response: { packId, status, checkedAt, totalNodes, brokenNodes[] }
+   */
+  @Get(':id/health')
+  async getHealth(@Param('id') id: string) {
+    const data = await this.installer.getPackHealthByPrefix(id);
+    return { success: true, data };
+  }
+
+  /**
+   * GET /packs/:id/node-overrides?organizationId=<uuid>
+   *
+   * Lists all node-level overrides for this pack in the given org.
+   * Returns is_enabled per node type so the UI can render the toggle state.
+   */
+  @Get(':id/node-overrides')
+  async getNodeOverrides(
+    @Param('id') id: string,
+    @Query('organizationId') orgId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (!orgId) throw new BadRequestException('organizationId query param is required');
+    await this.security.requireMembership(req.user.id, orgId);
+    const data = await this.registry.getNodeOverrides(orgId, id);
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /packs/:id/nodes/:nodeType/enable?organizationId=<uuid>
+   *
+   * Enable a specific node type for an org (removes the disable override).
+   * Requires owner or admin role.
+   * nodeType must be URL-encoded if it contains dots (e.g. contractor.dispatch_trip → contractor%2Edispatch_trip).
+   */
+  @Patch(':id/nodes/:nodeType/enable')
+  async enableNode(
+    @Param('id') packId: string,
+    @Param('nodeType') nodeType: string,
+    @Query('organizationId') orgId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (!orgId) throw new BadRequestException('organizationId query param is required');
+    await this.security.requirePermission(req.user.id, orgId, 'workflow.publish');
+    const data = await this.registry.setNodeOverride(orgId, packId, nodeType, true, req.user.id);
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /packs/:id/nodes/:nodeType/disable?organizationId=<uuid>
+   *
+   * Disable a specific node type for an org. Disabled nodes are added to
+   * skipNodes automatically when a run is enqueued for this org.
+   * Requires owner or admin role.
+   */
+  @Patch(':id/nodes/:nodeType/disable')
+  async disableNode(
+    @Param('id') packId: string,
+    @Param('nodeType') nodeType: string,
+    @Query('organizationId') orgId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (!orgId) throw new BadRequestException('organizationId query param is required');
+    await this.security.requirePermission(req.user.id, orgId, 'workflow.publish');
+    const data = await this.registry.setNodeOverride(orgId, packId, nodeType, false, req.user.id);
+    return { success: true, data };
+  }
+
+  // ── Existing ──────────────────────────────────────────────────────────────
 
   /** Get a single pack + its nodes */
   @Get(':id')

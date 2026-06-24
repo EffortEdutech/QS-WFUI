@@ -1,18 +1,18 @@
 /**
- * PackInstallerService — Phase 8
+ * PackInstallerService — Phase 8 / Phase 14 upgrade
  *
  * Write-side of the Pack system. Handles:
- *   - syncAll()       — on startup, upserts all compiled-in packs to the DB
- *   - registerPack()  — upsert a single pack manifest to the packs table
- *   - enablePack()    — set is_enabled=true + status='active' on pack + its nodes
- *   - disablePack()   — set is_enabled=false + status='disabled' on pack + its nodes
+ *   - syncAll()          — on startup, upserts all compiled-in packs to the DB
+ *   - registerPack()     — upsert a single pack manifest to the packs table
+ *   - enablePack()       — set is_enabled=true + status='active' on pack + its nodes
+ *   - disablePack()      — set is_enabled=false + status='disabled' on pack + its nodes
+ *   - healthCheckAll()   — Phase 14: try to resolve every registered node; log broken ones
+ *   - getResourceViews() — aggregate resource view configs from active packs
+ *   - getWorkflowTemplates() — list template paths for a pack
  *
  * "Compiled-in packs" = TypeScript workspace packages statically linked into
- * this binary. We cannot dynamically load new packs without a rebuild — but
- * admins can enable/disable and the DB stays authoritative for UI display.
- *
- * Node registration (inputs/outputs/config_schema) remains via SQL migrations.
- * PackInstallerService only manages the packs table identity row.
+ * this binary. Dynamic bundle loading (install from URL/upload) is deferred
+ * to post-Contractor-Edition deployment.
  */
 
 import {
@@ -24,20 +24,29 @@ import {
 } from '@nestjs/common';
 import { SupabaseService }      from '../common/supabase/supabase.service';
 import { PackRegistryService }  from './pack-registry.service';
-import type { PackSyncResult }  from './pack.types';
+import type { PackSyncResult, PackHealth }  from './pack.types';
 
 // ── Import all compiled pack manifests ────────────────────────────────────────
 import { manifest as coreManifest }        from '@lados/core-pack';
 import { manifest as foundationManifest }  from '@lados/foundation-pack';
 import { manifest as contractorManifest }  from '@lados/contractor-pack';
 import type { PackResourceDefinition }     from '@lados/pack-sdk';
-// Document, QS, Procurement, AI packs may not export a manifest yet — guard with try/catch in sync
-// We import them dynamically in syncAll() to tolerate missing exports.
+
+// ── Known node-type prefixes per compiled pack ────────────────────────────────
+//
+// Used for startup health check without requiring full service injection.
+// A node type is "resolvable" if its prefix matches the pack's known namespace.
+
+const PACK_PREFIXES: Record<string, string[]> = {
+  'qsos.core-pack':          ['core.', 'resource.', 'event.', 'state.', 'artifact.', 'control.', 'trigger.', 'http.', 'delay.', 'notification.', 'workflow.', 'project.'],
+  'lados.foundation-pack':   ['foundation.'],
+  'lados.contractor-pack':   ['contractor.'],
+  'qsos.qs-pack':            ['qs.'],
+  'qsos.document-pack':      ['document.'],
+  'qsos.procurement-pack':   ['procurement.'],
+};
 
 // ── In-memory manifest map ────────────────────────────────────────────────────
-//
-// Used by getResourceViews() to build the aggregated resource-type view registry.
-// Keyed by the canonical DB id of each pack.
 
 const MANIFEST_MAP: Record<string, { resources?: PackResourceDefinition[] }> = {
   'qsos.core-pack':          coreManifest,
@@ -46,61 +55,57 @@ const MANIFEST_MAP: Record<string, { resources?: PackResourceDefinition[] }> = {
 };
 
 // ── Compiled pack registry ────────────────────────────────────────────────────
-//
-// Maps each workspace pack to its canonical DB id.
-// The DB id uses dotted-namespace format (lados.*).
-// Existing packs that pre-date Phase 8 keep their qsos.* DB IDs.
 
 interface CompiledPackEntry {
-  dbId:    string;
-  version: string;
-  displayName: string;
-  description: string;
-  author:  string;
-  icon?:   string;
-  color?:  string;
-  isOfficial: boolean;
+  dbId:         string;
+  version:      string;
+  displayName:  string;
+  description:  string;
+  author:       string;
+  icon?:        string;
+  color?:       string;
+  isOfficial:   boolean;
   dependencies: string[];
+  installedFrom: string;
 }
 
 const COMPILED_PACKS: CompiledPackEntry[] = [
   {
-    dbId:        'qsos.core-pack',
-    version:     coreManifest.version,
-    displayName: coreManifest.displayName,
-    description: coreManifest.description ?? 'Fundamental workflow control nodes',
-    author:      coreManifest.author ?? 'Lados Platform',
-    icon:        'cpu',
-    color:       '#6B7280',
-    isOfficial:  true,
-    dependencies: [],
+    dbId:          'qsos.core-pack',
+    version:       coreManifest.version,
+    displayName:   coreManifest.displayName,
+    description:   coreManifest.description ?? 'Fundamental workflow control nodes',
+    author:        coreManifest.author ?? 'Lados Platform',
+    icon:          'cpu',
+    color:         '#6B7280',
+    isOfficial:    true,
+    dependencies:  [],
+    installedFrom: 'startup-sync',
   },
   {
-    dbId:        'lados.foundation-pack',
-    version:     foundationManifest.version,
-    displayName: foundationManifest.displayName,
-    description: foundationManifest.description ?? 'Universal capabilities for every Lados workspace',
-    author:      foundationManifest.author ?? 'Lados Platform',
-    icon:        'layers',
-    color:       '#6366F1',
-    isOfficial:  true,
-    dependencies: [],
+    dbId:          'lados.foundation-pack',
+    version:       foundationManifest.version,
+    displayName:   foundationManifest.displayName,
+    description:   foundationManifest.description ?? 'Universal capabilities for every Lados workspace',
+    author:        foundationManifest.author ?? 'Lados Platform',
+    icon:          'layers',
+    color:         '#6366F1',
+    isOfficial:    true,
+    dependencies:  [],
+    installedFrom: 'startup-sync',
   },
   {
-    dbId:        'lados.contractor-pack',
-    version:     contractorManifest.version,
-    displayName: contractorManifest.displayName,
-    description: contractorManifest.description ?? 'Contractor Edition for civil and earth-works contractors',
-    author:      contractorManifest.author ?? 'Lados Platform',
-    icon:        'truck',
-    color:       '#F59E0B',
-    isOfficial:  true,
-    dependencies: ['lados.foundation-pack'],
+    dbId:          'lados.contractor-pack',
+    version:       contractorManifest.version,
+    displayName:   contractorManifest.displayName,
+    description:   contractorManifest.description ?? 'Contractor Edition for civil and earth-works contractors',
+    author:        contractorManifest.author ?? 'Lados Platform',
+    icon:          'truck',
+    color:         '#F59E0B',
+    isOfficial:    true,
+    dependencies:  ['lados.foundation-pack'],
+    installedFrom: 'startup-sync',
   },
-  // qsos.qs-pack, qsos.document-pack, qsos.procurement-pack, qsos.ai-pack
-  // are seeded by earlier migrations and do not have compiled manifest imports yet.
-  // They will appear in getAll() from the DB but are not synced by this service
-  // until their packs export a manifest.
 ];
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -127,15 +132,13 @@ export class PackInstallerService implements OnModuleInit {
     } catch (err) {
       this.logger.error(`PackInstaller: startup sync failed — ${String(err)}`);
     }
+
+    // Phase 14 — startup health check (non-blocking)
+    void this.healthCheckAll();
   }
 
   // ── Sync ──────────────────────────────────────────────────────────────────
 
-  /**
-   * Sync all compiled-in packs to the packs table.
-   * Upserts the pack identity row — does NOT touch registered_nodes
-   * (node schema registration happens via SQL migrations).
-   */
   async syncAll(): Promise<PackSyncResult> {
     const result: PackSyncResult = { synced: [], skipped: [], errors: [] };
 
@@ -156,10 +159,6 @@ export class PackInstallerService implements OnModuleInit {
     return result;
   }
 
-  /**
-   * Upsert a pack identity row into the packs table.
-   * Returns true if the row was inserted or updated, false if already current.
-   */
   async registerPack(entry: CompiledPackEntry): Promise<boolean> {
     const { data: existing } = await this.supabase.admin
       .from('packs')
@@ -168,25 +167,27 @@ export class PackInstallerService implements OnModuleInit {
       .maybeSingle();
 
     if (existing && existing['version'] === entry.version) {
-      return false; // already up to date
+      return false;
     }
 
     const { error } = await this.supabase.admin
       .from('packs')
       .upsert({
-        id:           entry.dbId,
-        display_name: entry.displayName,
-        description:  entry.description,
-        author:       entry.author,
-        version:      entry.version,
-        icon:         entry.icon ?? null,
-        color:        entry.color ?? null,
-        is_official:  entry.isOfficial,
-        is_enabled:   true,
-        status:       'active',
-        dependencies: entry.dependencies,
-        installed_at: existing ? undefined : new Date().toISOString(),
-        updated_at:   new Date().toISOString(),
+        id:               entry.dbId,
+        display_name:     entry.displayName,
+        description:      entry.description,
+        author:           entry.author,
+        version:          entry.version,
+        previous_version: existing ? (existing['version'] as string) : null,
+        icon:             entry.icon ?? null,
+        color:            entry.color ?? null,
+        is_official:      entry.isOfficial,
+        is_enabled:       true,
+        status:           'active',
+        dependencies:     entry.dependencies,
+        installed_from:   entry.installedFrom,
+        installed_at:     existing ? undefined : new Date().toISOString(),
+        updated_at:       new Date().toISOString(),
       }, { onConflict: 'id' });
 
     if (error) throw new Error(error.message);
@@ -195,10 +196,6 @@ export class PackInstallerService implements OnModuleInit {
 
   // ── Enable / Disable ──────────────────────────────────────────────────────
 
-  /**
-   * Enable a pack and all its registered nodes.
-   * Validates dependencies are satisfied first.
-   */
   async enablePack(id: string): Promise<void> {
     const { allowed, blockedBy } = await this.registry.canEnable(id);
     if (!allowed) {
@@ -214,7 +211,6 @@ export class PackInstallerService implements OnModuleInit {
 
     if (packErr) throw new Error(packErr.message);
 
-    // Re-enable all nodes belonging to this pack
     await this.supabase.admin
       .from('registered_nodes')
       .update({ is_enabled: true, updated_at: new Date().toISOString() })
@@ -223,13 +219,8 @@ export class PackInstallerService implements OnModuleInit {
     this.logger.log(`Pack enabled: ${id}`);
   }
 
-  /**
-   * Disable a pack and all its registered nodes.
-   * Validates no active pack depends on this one first.
-   */
   async disablePack(id: string): Promise<void> {
-    // Cannot disable a pack that doesn't exist
-    await this.registry.findById(id); // throws NotFoundException if missing
+    await this.registry.findById(id);
 
     const { allowed, dependents } = await this.registry.canDisable(id);
     if (!allowed) {
@@ -245,7 +236,6 @@ export class PackInstallerService implements OnModuleInit {
 
     if (packErr) throw new Error(packErr.message);
 
-    // Disable all nodes belonging to this pack
     await this.supabase.admin
       .from('registered_nodes')
       .update({ is_enabled: false, updated_at: new Date().toISOString() })
@@ -254,23 +244,88 @@ export class PackInstallerService implements OnModuleInit {
     this.logger.log(`Pack disabled: ${id}`);
   }
 
-  // ── Resource view registry ────────────────────────────────────────────────
+  // ── Health check (Phase 14) ───────────────────────────────────────────────
 
   /**
-   * Aggregate resource type view configs from all active, installed packs.
+   * Run a startup health check for all active packs.
+   * Uses prefix-matching to verify each registered node type belongs to its pack.
+   * Logs broken nodes as WARN — does NOT block startup.
    *
-   * The generic /resources page calls this endpoint on mount to know:
-   *   - what resource types exist in this workspace
-   *   - how each type should be rendered (primaryField, badgeField, etc.)
-   *   - which inline actions are available per state
-   *
-   * Filtered to packs that are both is_enabled=true and status='active' in DB,
-   * so enabling/disabling a pack is reflected immediately without a restart.
-   *
-   * Returns: Record<resourceType, { packId, displayName, icon?, views? }>
+   * For on-demand health checks via GET /packs/:id/health,
+   * PackController calls registry.getPackHealth() directly.
    */
+  async healthCheckAll(): Promise<void> {
+    const { data: activePacks } = await this.supabase.admin
+      .from('packs')
+      .select('id')
+      .eq('is_enabled', true)
+      .eq('status', 'active');
+
+    for (const pack of activePacks ?? []) {
+      const packId = pack['id'] as string;
+      try {
+        const health = await this.getPackHealthByPrefix(packId);
+        if (health.status === 'healthy') {
+          this.logger.log(`[HealthCheck] ${packId} — ✅ ${health.totalNodes} nodes healthy`);
+        } else if (health.status === 'degraded') {
+          this.logger.warn(
+            `[HealthCheck] ${packId} — ⚠️ ${health.brokenNodes.length}/${health.totalNodes} nodes unrecognised: ` +
+            health.brokenNodes.map((n) => n.nodeType).join(', '),
+          );
+        } else {
+          this.logger.warn(`[HealthCheck] ${packId} — ❌ no registered nodes`);
+        }
+      } catch (err) {
+        this.logger.warn(`[HealthCheck] ${packId} — error: ${String(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Prefix-based health check: a node is "resolvable" if its type starts with
+   * one of the known prefixes for its pack. This avoids needing full service
+   * injection into the pack layer at startup.
+   */
+  async getPackHealthByPrefix(packId: string): Promise<PackHealth> {
+    const nodes = await this.registry.getPackNodes(packId);
+    const prefixes = PACK_PREFIXES[packId] ?? [];
+
+    const brokenNodes = nodes
+      .filter((n) => {
+        const nodeType = n['type'] as string;
+        // If no prefixes configured for this pack, assume healthy (external / legacy pack)
+        if (prefixes.length === 0) return false;
+        return !prefixes.some((p) => nodeType.startsWith(p));
+      })
+      .map((n) => ({
+        nodeType:   n['type'] as string,
+        resolvable: false,
+        error:      'Node type prefix does not match any known resolver for this pack',
+      }));
+
+    let status: PackHealth['status'];
+    if (nodes.length === 0) {
+      status = 'broken';
+    } else if (brokenNodes.length === 0) {
+      status = 'healthy';
+    } else if (brokenNodes.length < nodes.length) {
+      status = 'degraded';
+    } else {
+      status = 'broken';
+    }
+
+    return {
+      packId,
+      status,
+      checkedAt:   new Date().toISOString(),
+      totalNodes:  nodes.length,
+      brokenNodes,
+    };
+  }
+
+  // ── Resource view registry ────────────────────────────────────────────────
+
   async getResourceViews(): Promise<Record<string, PackResourceDefinition & { packId: string }>> {
-    // Fetch active pack IDs from DB
     const { data: activePacks } = await this.supabase.admin
       .from('packs')
       .select('id')
@@ -291,11 +346,6 @@ export class PackInstallerService implements OnModuleInit {
     return result;
   }
 
-  /**
-   * Return workflow template declarations from all active packs.
-   * Keys are template file paths relative to the pack root.
-   * Used by GET /packs/:id/templates to list available templates.
-   */
   async getWorkflowTemplates(packId: string): Promise<string[]> {
     const manifest = MANIFEST_MAP[packId];
     if (!manifest) return [];

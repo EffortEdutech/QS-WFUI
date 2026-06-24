@@ -106,7 +106,7 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
   // ── Job processor ────────────────────────────────────────────────────────
 
   private async process(job: Job<ExecutionJobPayload>): Promise<void> {
-    const { type, runId, workflowId, projectId, orgId, userId, resumeFromCheckpoint } = job.data;
+    const { type, runId, workflowId, projectId, orgId, userId, skipNodes, resumeFromCheckpoint } = job.data;
 
     this.logger.log(`Processing ${type} job for run ${runId} (attempt ${job.attemptsMade + 1})`);
 
@@ -134,7 +134,7 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
       inputs,
       variables:      {},
       nodeResolver:   this.nodeResolver,
-      skipNodes:      [],
+      skipNodes:      skipNodes ?? [],
       ...(type === EXECUTION_JOB_TYPE.RESUME && resumeFromCheckpoint
         ? { resumeFromCheckpoint }
         : {}),

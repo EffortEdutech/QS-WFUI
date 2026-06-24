@@ -28,8 +28,10 @@ import { SecurityEngineService } from '../security/security.service';
 import { ApprovalTaskCreator } from '../approval/approval-task.creator';
 import { ArtifactService }     from '../artifact/artifact.service';
 import { ExecutionQueueService } from '../queue/execution-queue.service';
+import { PackRegistryService }   from '../pack/pack-registry.service';
 import { buildRealNodeResolver } from './real-nodes';
 import { runWorkflow } from '@lados/execution-engine';
+import type { SkipNodeSpec } from '@lados/execution-engine';
 import type { QSWorkflowDefinition } from '@lados/shared-types';
 import type { TriggerRunDto } from './dto/trigger-run.dto';
 
@@ -51,6 +53,7 @@ export class ExecutionService implements OnModuleInit {
     private readonly approvalTaskCreator: ApprovalTaskCreator,
     private readonly artifactService: ArtifactService,
     private readonly executionQueue: ExecutionQueueService,
+    private readonly packRegistry: PackRegistryService,
   ) {
     // nodeResolver used only for in-process fallback (no Redis) and executeNodeAction.
     this.nodeResolver = buildRealNodeResolver(
@@ -154,13 +157,25 @@ export class ExecutionService implements OnModuleInit {
     });
 
     // Phase 12: enqueue via BullMQ (falls back to in-process if Redis not available)
+    // Phase 14: merge org-level disabled node types into skipNodes
+    // getDisabledNodeTypes() returns type strings; convert to SkipNodeSpec[] by scanning the definition.
+    const orgId = project.organization_id as string;
+    const disabledNodeTypes = await this.packRegistry.getDisabledNodeTypes(orgId);
+    const overrideSpecs: SkipNodeSpec[] = disabledNodeTypes.size > 0
+      ? definition.nodes
+          .filter((n) => disabledNodeTypes.has(n.type as string))
+          .map((n) => ({ nodeId: n.id as string, reason: `Node type "${n.type}" is disabled for this org` }))
+      : [];
+    const skipNodes: SkipNodeSpec[] = [...(dto.skipNodes ?? []), ...overrideSpecs];
+
     if (this.executionQueue.isAvailable) {
       await this.executionQueue.enqueueTrigger({
         runId,
         workflowId,
         projectId:  workflow.project_id as string,
-        orgId:      project.organization_id as string,
+        orgId,
         userId,
+        skipNodes,
       });
     } else {
       // In-process fallback (dev without Redis)
@@ -168,15 +183,15 @@ export class ExecutionService implements OnModuleInit {
         executionId:    runId,
         workflowId,
         projectId:      workflow.project_id as string,
-        organizationId: project.organization_id as string,
-        skipNodes:      dto.skipNodes ?? [],
+        organizationId: orgId,
+        skipNodes,
         userId,
         definition,
         inputs:         dto.inputs ?? {},
         variables:      dto.variables ?? {},
         nodeResolver:   this.nodeResolver,
       };
-      this._executeAndPersist(runId, workflow, project, runOptions).catch((err: unknown) => {
+      this._executeAndPersist(runId, workflow, project as Record<string, unknown>, runOptions).catch((err: unknown) => {
         console.error(`[ExecutionService] Fallback run ${runId} threw: ${err instanceof Error ? err.message : String(err)}`);
       });
     }
@@ -254,13 +269,23 @@ export class ExecutionService implements OnModuleInit {
     };
 
     // Phase 12: re-enqueue via BullMQ (falls back to in-process if Redis not available)
+    // Phase 14: apply org-level node overrides to skipNodes on resume
+    const resumeOrgId = run['organization_id'] as string;
+    const resumeDisabledTypes = await this.packRegistry.getDisabledNodeTypes(resumeOrgId);
+    const resumeSkipNodes: SkipNodeSpec[] = resumeDisabledTypes.size > 0
+      ? definition.nodes
+          .filter((n) => resumeDisabledTypes.has(n.type as string))
+          .map((n) => ({ nodeId: n.id as string, reason: `Node type "${n.type}" is disabled for this org` }))
+      : [];
+
     if (this.executionQueue.isAvailable) {
       await this.executionQueue.enqueueResume({
         runId,
         workflowId:  run['workflow_id'] as string,
         projectId:   run['project_id'] as string,
-        orgId:       run['organization_id'] as string,
+        orgId:       resumeOrgId,
         userId,
+        skipNodes:   resumeSkipNodes,
         resumeFromCheckpoint,
       });
     } else {
@@ -269,12 +294,13 @@ export class ExecutionService implements OnModuleInit {
         executionId:    runId,
         workflowId:     run['workflow_id'] as string,
         projectId:      run['project_id'] as string,
-        organizationId: run['organization_id'] as string,
+        organizationId: resumeOrgId,
         userId,
         definition,
         inputs:         (run['inputs'] ?? {}) as Record<string, unknown>,
         variables:      {} as Record<string, unknown>,
         nodeResolver:   this.nodeResolver,
+        skipNodes:      resumeSkipNodes,
         resumeFromCheckpoint,
       };
       this._executeAndPersist(runId, workflow, project, resumeOptions).catch((err: unknown) => {
@@ -540,6 +566,14 @@ export class ExecutionService implements OnModuleInit {
     });
 
     // Phase 12: enqueue (falls back to in-process if Redis not available)
+    // Phase 14: apply org-level node overrides to skipNodes on event-triggered runs
+    const eventDisabledTypes = await this.packRegistry.getDisabledNodeTypes(orgId);
+    const eventSkipNodes: SkipNodeSpec[] = eventDisabledTypes.size > 0
+      ? definition.nodes
+          .filter((n) => eventDisabledTypes.has(n.type as string))
+          .map((n) => ({ nodeId: n.id as string, reason: `Node type "${n.type}" is disabled for this org` }))
+      : [];
+
     if (this.executionQueue.isAvailable) {
       await this.executionQueue.enqueueTrigger({
         runId,
@@ -547,6 +581,7 @@ export class ExecutionService implements OnModuleInit {
         projectId:  workflow['project_id'] as string,
         orgId,
         userId:     actorId,
+        skipNodes:  eventSkipNodes,
       });
     } else {
       const runOptions = {
@@ -559,6 +594,7 @@ export class ExecutionService implements OnModuleInit {
         inputs:         inputs ?? {},
         variables:      {} as Record<string, unknown>,
         nodeResolver:   this.nodeResolver,
+        skipNodes:      eventSkipNodes,
       };
       this._executeAndPersist(runId, workflow, { organization_id: orgId }, runOptions).catch(
         (err: unknown) => {

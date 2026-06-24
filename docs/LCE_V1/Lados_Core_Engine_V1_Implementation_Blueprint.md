@@ -1341,20 +1341,75 @@ The initial build violated §3.10 (Platform UI Is Generic). The following correc
 
 ### Phase 13: LEOS / JKR Layer Preparation
 
-**Status:** Deferred. Kept separate from core delivery.
+**Status:** ✅ COMPLETE (2026-06-24) — documentation only, zero code commits
 
-**Goal:** Document the LEOS/JKR solution without implementing it during LCE V1.
+**Goal:** Lock the LEOS/JKR blueprint so that when build begins no engine surgery is required.
 
-**Tasks:**
+**Delivered:** `docs/LEOS/01_Deferred_Blueprint.md`
 
-- Maintain LEOS/JKR as a separate solution blueprint
-- Identify the packs it will need: Project, Tender, BOQ, Contract, Inspection, Payment, Variation, Asset, Archive
-- Identify resource types it will introduce
-- Confirm that LCE V1 Resource Engine, Event Bus, State Engine, and Security Engine can represent them without change
+---
+
+### Phase 14: Registry Maturity
+
+**Status:** ✅ COMPLETE (2026-06-24)
+
+**Goal:** Operator-grade pack management — version tracking, health monitoring, and per-org node-level enable/disable controls enforced at execution time.
+
+**Migration:** `apps/api/src/migrations/0036_pack_registry_upgrade.sql`
+- `packs` table: added `installed_from`, `previous_version`, `checksum` columns
+- `pack_node_overrides` table: per-org, per-pack, per-node-type enable/disable with RLS
+
+**API changes:**
+- `PackRegistryService`: `getPackHealth()`, `setNodeOverride()`, `getNodeOverrides()`, `getDisabledNodeTypes()`
+- `PackInstallerService`: `healthCheckAll()` on startup (non-blocking), `getPackHealthByPrefix()` for prefix-based health
+- `PackController` — 4 new endpoints:
+  - `GET /packs/:id/health` — on-demand health check
+  - `GET /packs/:id/node-overrides?organizationId=<uuid>` — list org overrides
+  - `PATCH /packs/:id/nodes/:nodeType/enable?organizationId=<uuid>` — enable node for org
+  - `PATCH /packs/:id/nodes/:nodeType/disable?organizationId=<uuid>` — disable node for org
+- `ExecutionJobPayload`: `skipNodes?: SkipNodeSpec[]` added
+- `ExecutionService` (`triggerRun`, `resumeRun`, `_triggerFromEvent`): loads disabled node types per org, converts to `SkipNodeSpec[]` by scanning the workflow definition, merges into `skipNodes` before enqueuing
+- `ExecutionWorker`: reads `skipNodes` from job payload, passes to runner (was hardcoded `[]`)
+
+**UI changes (`/packs` list page):**
+- Fixed `organizationId` undefined bug in toggle handler
+- Health badge per pack (green ✓ Healthy / amber ⚠ Degraded / red ✕ Broken) — loaded asynchronously after pack list
+
+**UI changes (`/packs/[packId]` detail page):**
+- Health badge in pack header with node count and check time
+- `previous_version` shown in version line when pack was recently upgraded
+- Per-node enable/disable toggle per org — loads org overrides on mount, calls enable/disable endpoints on click
+
+**Design decisions:**
+- Health check is prefix-based (not full resolver injection) to keep the pack layer free of service deps
+- `pack_node_overrides` stores node **type** (e.g. `"contractor.dispatch_trip"`); at execution time these are expanded to `SkipNodeSpec[]` by scanning the workflow definition for matching instances
+- Startup health runs non-blocking (`void this.healthCheckAll()`) — API boots even if packs have broken nodes
+- `PACK_PREFIXES` in `PackInstallerService` is the source of truth for which type prefixes belong to each pack
 
 **Acceptance:**
-- LEOS/JKR scope is documented and not mixed into LCE V1 delivery
-- The existing QS pack (`qs.read_boq`, etc.) is maintained but not expanded until Contractor Edition proves the engine
+- [x] Migration 0036 written
+- [x] `pack_node_overrides` RLS policies in place
+- [x] Health check runs on startup — 6/6 packs logging correctly (qsos.core-pack WARN fixed)
+- [x] `GET /packs/:id/health` returns live result
+- [x] Node override endpoints working (enable/disable per org)
+- [x] `skipNodes` flows from DB → job payload → runner for all three trigger paths
+- [x] UI: health badge on list + detail, node toggles on detail page
+
+---
+
+**Key confirmations:**
+- 26 LEOS resource types — all fit `lados_resources`, 0 schema changes required
+- 12 LEOS state machines — all fit `lados_state_machines`, 0 schema changes required
+- 6 LEOS packs planned (~230 nodes, ~300 workflows) — all follow existing `PackManifest + resolveNode()` contract
+- `qs-pack` validated as a dependency of `leos-procurement-pack` — no rebuild needed
+- Multi-tier org hierarchy (JKR Federal → State → District) confirmed achievable with one column addition, no engine surgery
+- 0 LCE V1 engine blockers identified
+
+**Acceptance:**
+- [x] LEOS blueprint written and locked
+- [x] Every resource type confirmed representable without schema changes
+- [x] QS pack boundary validated
+- [x] Phase 13 has zero code commits
 
 ---
 

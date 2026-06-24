@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 
@@ -207,204 +207,9 @@ function ContractorDashboard({ orgId }: { orgId: string }) {
   );
 }
 
-// ── M5 — Owner Assistant ───────────────────────────────────────────────────────
-
-interface AssistResponse {
-  response:   string;
-  sessionId:  string;
-  ledgerId:   string;
-  tokensUsed: number;
-}
-
-interface ChatMessage {
-  role:    'user' | 'assistant';
-  content: string;
-}
-
-const STARTER_PROMPTS = [
-  'What jobs are active right now?',
-  'How many trips are in progress today?',
-  'Any invoices pending approval?',
-  'Show me recent activity across the organisation.',
-];
-
-function OwnerAssistant({ orgId }: { orgId: string }) {
-  const [open,     setOpen]     = useState(false);
-  const [input,    setInput]    = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [enabled,  setEnabled]  = useState<boolean | null>(null);  // null = checking
-
-  // Stable session ID per page mount
-  const sessionId = useRef<string>(crypto.randomUUID());
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Check if AI is configured on first open
-  useEffect(() => {
-    if (!open || enabled !== null) return;
-    apiClient.get<{ configured: boolean }>('/ai/status')
-      .then((r) => setEnabled(r.data?.configured ?? false))
-      .catch(() => setEnabled(false));
-  }, [open, enabled]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
-
-  const send = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
-    setInput('');
-    setError(null);
-
-    const userMsg: ChatMessage = { role: 'user', content: text.trim() };
-    setMessages((prev) => [...prev, userMsg]);
-    setLoading(true);
-
-    try {
-      const res = await apiClient.post<AssistResponse>('/ai/assist', {
-        orgId,
-        message:   text.trim(),
-        sessionId: sessionId.current,
-        // pass last 6 turns as history (3 exchanges)
-        history: [...messages, userMsg].slice(-6),
-      });
-
-      const assistantText = res.data?.response ?? '(no response)';
-      setMessages((prev) => [...prev, { role: 'assistant', content: assistantText }]);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Request failed';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, messages, orgId]);
-
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void send(input);
-    }
-  };
-
-  return (
-    <>
-      {/* Floating trigger button */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 h-13 w-13 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center text-xl"
-        title="Owner Assistant"
-        style={{ width: 52, height: 52 }}
-      >
-        {open ? '✕' : '🤖'}
-      </button>
-
-      {/* Chat panel */}
-      {open && (
-        <div className="fixed bottom-20 right-6 z-50 w-[360px] max-h-[520px] flex flex-col rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
-          {/* Header */}
-          <div className="px-4 py-3 bg-blue-600 text-white flex items-center justify-between flex-shrink-0">
-            <div>
-              <p className="text-sm font-semibold">Owner Assistant</p>
-              <p className="text-[10px] text-blue-200">Advisory only · read-only access</p>
-            </div>
-            <button onClick={() => setOpen(false)} className="text-blue-200 hover:text-white text-lg leading-none">✕</button>
-          </div>
-
-          {/* AI not configured banner */}
-          {enabled === false && (
-            <div className="flex-1 flex items-center justify-center p-6 text-center">
-              <div>
-                <p className="text-2xl mb-2">🔑</p>
-                <p className="text-sm font-medium text-gray-700">AI not configured</p>
-                <p className="text-xs text-gray-400 mt-1">Set <code className="bg-gray-100 px-1 rounded">OPENAI_API_KEY</code> in the API environment to enable the assistant.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Messages */}
-          {enabled !== false && (
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-              {messages.length === 0 && !loading && (
-                <div className="space-y-2">
-                  <p className="text-[11px] text-gray-400 text-center py-2">Ask me anything about your operations.</p>
-                  {STARTER_PROMPTS.map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => void send(p)}
-                      className="w-full text-left text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-200 text-gray-600 transition-colors"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
-                      msg.role === 'user'
-                        ? 'bg-blue-600 text-white rounded-br-sm'
-                        : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3 py-2">
-                    <span className="inline-flex gap-1 items-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <p className="text-[11px] text-red-500 text-center px-2">{error}</p>
-              )}
-
-              <div ref={bottomRef} />
-            </div>
-          )}
-
-          {/* Input */}
-          {enabled !== false && (
-            <div className="border-t border-gray-100 p-2 flex gap-2 flex-shrink-0">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder="Ask about jobs, trips, drivers…"
-                rows={1}
-                disabled={loading}
-                className="flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:border-blue-400 disabled:opacity-50"
-                style={{ maxHeight: 80 }}
-              />
-              <button
-                onClick={() => void send(input)}
-                disabled={!input.trim() || loading}
-                className="rounded-lg bg-blue-600 px-3 py-2 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0"
-              >
-                Send
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
+// ── M5 — Owner Assistant moved to /ai page (Phase 15) ────────────────────────
+// Previously a floating widget here; replaced by the dedicated /ai route to
+// avoid button conflict with the global AiCommandBar (workflow trigger).
 
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 
@@ -562,10 +367,6 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* M5 — Owner Assistant (floating, owner/admin only) */}
-      {!loading && isOwnerAdmin && org && (
-        <OwnerAssistant orgId={org.id} />
-      )}
     </div>
   );
 }

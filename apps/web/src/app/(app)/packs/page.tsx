@@ -2,13 +2,13 @@
 
 /**
  * Pack Manager — /packs
- * Phase 8 (Pack Installer & Registry)
+ * Phase 8 (Pack Installer & Registry) / Phase 14 upgrade
  *
  * Lists all packs from the packs table.
- * - Sync button: POST /packs/sync — re-syncs compiled pack manifests to DB
+ * - Sync button: POST /packs/sync
  * - Enable/Disable toggle per pack (owner/admin)
- * - Status badge: Active | Disabled
- * - Dependency blocked indicator
+ * - Health badge: healthy / degraded / broken  [Phase 14]
+ * - Version badge with previous_version hint    [Phase 14]
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,18 +18,27 @@ import { apiClient } from '@/lib/api/client';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Pack {
-  id:           string;
-  display_name: string;
-  description:  string | null;
-  author:       string;
-  version:      string;
-  icon:         string | null;
-  color:        string | null;
-  is_official:  boolean;
-  is_enabled:   boolean;
-  status:       'active' | 'disabled' | 'error';
-  dependencies: string[];
-  node_count:   number;
+  id:               string;
+  display_name:     string;
+  description:      string | null;
+  author:           string;
+  version:          string;
+  previous_version: string | null;
+  icon:             string | null;
+  color:            string | null;
+  is_official:      boolean;
+  is_enabled:       boolean;
+  status:           'active' | 'disabled' | 'error';
+  dependencies:     string[];
+  node_count:       number;
+}
+
+interface PackHealth {
+  packId:      string;
+  status:      'healthy' | 'degraded' | 'broken';
+  checkedAt:   string;
+  totalNodes:  number;
+  brokenNodes: { nodeType: string; resolvable: boolean; error?: string }[];
 }
 
 // ── Pack icon map ─────────────────────────────────────────────────────────────
@@ -68,10 +77,45 @@ function StatusBadge({ status, isEnabled }: { status: Pack['status']; isEnabled:
   );
 }
 
+// ── Health badge (Phase 14) ───────────────────────────────────────────────────
+
+function HealthBadge({ health }: { health: PackHealth | null | undefined }) {
+  if (!health) {
+    return (
+      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-50 text-gray-400 border border-gray-100">
+        ··· checking
+      </span>
+    );
+  }
+  if (health.status === 'healthy') {
+    return (
+      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100"
+        title={`${health.totalNodes} nodes healthy`}>
+        ✓ Healthy
+      </span>
+    );
+  }
+  if (health.status === 'degraded') {
+    return (
+      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-100"
+        title={`${health.brokenNodes.length}/${health.totalNodes} nodes unrecognised`}>
+        ⚠ Degraded
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100"
+      title="No nodes resolvable">
+      ✕ Broken
+    </span>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PacksPage() {
   const [packs,    setPacks]    = useState<Pack[]>([]);
+  const [health,   setHealth]   = useState<Record<string, PackHealth>>({});
   const [loading,  setLoading]  = useState(true);
   const [syncing,  setSyncing]  = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -82,7 +126,21 @@ export default function PacksPage() {
     setLoading(true);
     apiClient
       .get<Pack[]>('/packs')
-      .then((res) => setPacks(res.data ?? []))
+      .then((res) => {
+        const data = res.data ?? [];
+        setPacks(data);
+        // Phase 14: load health for all active packs in parallel (non-blocking)
+        data.filter((p) => p.is_enabled).forEach((p) => {
+          apiClient
+            .get<PackHealth>(`/packs/${encodeURIComponent(p.id)}/health`)
+            .then((r) => {
+              if (r.data) {
+                setHealth((prev) => ({ ...prev, [p.id]: r.data! }));
+              }
+            })
+            .catch(() => { /* health badge stays in "checking" state */ });
+        });
+      })
       .catch(() => setError('Failed to load packs'))
       .finally(() => setLoading(false));
   }, []);
@@ -117,8 +175,7 @@ export default function PacksPage() {
     setToggling(pack.id);
     try {
       const action = pack.is_enabled ? 'disable' : 'enable';
-      const params = organizationId ? `?organizationId=${organizationId}` : '';
-      await apiClient.patch(`/packs/${encodeURIComponent(pack.id)}/${action}${params}`);
+      await apiClient.patch(`/packs/${encodeURIComponent(pack.id)}/${action}`);
       loadPacks();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Toggle failed';
@@ -187,6 +244,7 @@ export default function PacksPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {packs.map((pack) => {
               const isToggling = toggling === pack.id;
+              const packHealth = health[pack.id];
               return (
                 <div
                   key={pack.id}
@@ -216,6 +274,8 @@ export default function PacksPage() {
                           </span>
                         )}
                         <StatusBadge status={pack.status} isEnabled={pack.is_enabled} />
+                        {/* Phase 14: health badge */}
+                        {pack.is_enabled && <HealthBadge health={packHealth} />}
                       </div>
                     </div>
 
@@ -223,8 +283,15 @@ export default function PacksPage() {
                     <h2 className="font-semibold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
                       {pack.display_name}
                     </h2>
+                    {/* Phase 14: version + previous_version */}
                     <p className="text-[11px] text-gray-400 mt-0.5 font-mono">
-                      v{pack.version} · {pack.author}
+                      v{pack.version}
+                      {pack.previous_version && (
+                        <span className="ml-1 text-[10px] text-gray-300">
+                          (↑ from v{pack.previous_version})
+                        </span>
+                      )}
+                      {' · '}{pack.author}
                     </p>
 
                     {/* Description */}
