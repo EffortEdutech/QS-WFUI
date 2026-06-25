@@ -1,0 +1,18 @@
+# .claudeignore — Prevents Claude/Cowork AI tools from reading sensitive files.
+# These files contain production secrets and must NEVER be sent to any AI API.
+# Format: same as .gitignore
+
+# Environment files (NEVER read by AI)
+.env
+.env.*
+apps/api/.env
+apps/api/.env.*
+apps/web/.env
+apps/web/.env.*
+apps/web/.env.local
+
+# Allow examples (placeholders only, no real secrets)
+!.env.example
+!.env.*.example
+!apps/api/.env.example
+!apps/web/.env.local.example

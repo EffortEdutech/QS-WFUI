@@ -15,7 +15,7 @@ const NAV = [
   { href: '/projects',           label: 'Projects',     icon: '📁' },
   { href: '/resources',          label: 'Resources',    icon: '🗂️' },
   { href: '/approvals',          label: 'Approvals',    icon: '✅' },
-  { href: '/ai',                 label: 'AI Assistant', icon: '🤖' },
+  { href: '/ai',                 label: 'AI Insights',  icon: '🤖' },
   { href: '/suppliers',          label: 'Suppliers',    icon: '🏗️' },
   { href: '/packs',              label: 'Packs',        icon: '📦' },
   { href: '/marketplace',        label: 'Marketplace',  icon: '🛒' },
