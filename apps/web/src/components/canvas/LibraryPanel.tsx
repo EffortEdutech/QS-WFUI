@@ -267,7 +267,7 @@ export default function LibraryPanel({ organizationId, projectId }: Props) {
                   {confirmDeleteId === file.id ? (
                     /* Inline confirm */
                     <div className="space-y-1.5">
-                      <p className="text-[11px] text-gray-700 font-medium">Remove "{file.label}"?</p>
+                      <p className="text-[11px] text-gray-700 font-medium">Remove &ldquo;{file.label}&rdquo;?</p>
                       <p className="text-[10px] text-gray-400">This cannot be undone.</p>
                       {deleteError && <p className="text-[10px] text-red-500">{deleteError}</p>}
                       <div className="flex gap-1.5">

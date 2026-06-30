@@ -28,11 +28,23 @@ export interface ExecutionStep {
   config: Record<string, unknown>;
   /** IDs of steps that must complete before this one */
   dependsOn: string[];
+  /**
+   * Phase 6: BFS wave index (0-based).
+   * All steps at the same level have no dependencies on each other
+   * and can execute in parallel.
+   */
+  level: number;
 }
 
 export interface ExecutionPlan {
   /** Ordered list of steps (topological sort) */
   steps: ExecutionStep[];
+  /**
+   * Phase 6: Steps grouped by BFS level.
+   * Each group is a set of steps that can run in parallel.
+   * parallelGroups[0] are root nodes, parallelGroups[1] depend only on level-0, etc.
+   */
+  parallelGroups: ExecutionStep[][];
   /** Detected cycles — if any, execution is blocked */
   cycles: string[][];
 }
@@ -149,6 +161,12 @@ export interface RunnerOptions {
    * inject { customerId: 'existing-uuid' } as the node's outputs.
    */
   skipNodes?: SkipNodeSpec[];
+  /**
+   * Phase 6: Maximum number of nodes that may execute simultaneously within a
+   * parallel level. Default: unlimited (all nodes in a level run concurrently).
+   * Set to 1 to force sequential execution even for independent nodes.
+   */
+  concurrency?: number;
 }
 
 // ── Mock node executor type ───────────────────────────────────────────────────

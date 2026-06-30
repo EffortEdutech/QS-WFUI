@@ -7,7 +7,8 @@
  * PATCH  /resources/:id         — update name / data / project / parent
  * DELETE /resources/:id         — delete a resource
  * POST   /resources/:id/transition — transition resource state
- * GET    /resources/:id/events  — full state-change history
+ * GET    /resources/:id/events   — resource event log
+ * GET    /resources/:id/history  — full state-transition history
  *
  * organizationId is passed as a required query param (matching the existing
  * pattern in LibraryController / FileController — req.user only carries id).
@@ -19,6 +20,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseJwtGuard } from '../common/guards/supabase-jwt.guard';
 import { ResourceService, ResourceType } from './resource.service';
+import { StateEngineService } from '../state-engine/state-engine.service';
 import {
   CreateResourceDto, UpdateResourceDto, TransitionStateDto, ListResourcesDto,
 } from './resource.dto';
@@ -27,7 +29,10 @@ import type { AuthenticatedRequest } from '../common/types/authenticated-request
 @UseGuards(SupabaseJwtGuard)
 @Controller('resources')
 export class ResourceController {
-  constructor(private readonly resources: ResourceService) {}
+  constructor(
+    private readonly resources: ResourceService,
+    private readonly stateEngine: StateEngineService,
+  ) {}
 
   private requireOrg(orgId: string | undefined): string {
     if (!orgId) throw new BadRequestException('organizationId query param is required');
@@ -135,6 +140,18 @@ export class ResourceController {
     @Request() _req: AuthenticatedRequest,
   ) {
     const data = await this.resources.getEvents(id, this.requireOrg(orgId));
+    return { success: true, data };
+  }
+
+  // ── State-transition history ───────────────────────────────────────────────
+
+  @Get(':id/history')
+  async history(
+    @Param('id') id: string,
+    @Query('organizationId') orgId: string,
+    @Request() _req: AuthenticatedRequest,
+  ) {
+    const data = await this.stateEngine.getHistory(id, this.requireOrg(orgId));
     return { success: true, data };
   }
 }

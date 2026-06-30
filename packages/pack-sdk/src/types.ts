@@ -3,7 +3,7 @@
  * Sprint 5 (S5-002)
  */
 
-import type { NodeManifest } from '@lados/node-sdk';
+import type { NodeManifestV2 } from '@lados/node-sdk';
 
 // ── Resource view configuration ───────────────────────────────────────────────
 //
@@ -114,7 +114,7 @@ export interface PackPermission {
 // ── Node registration ────────────────────────────────────────────────────────
 
 export interface PackNodeRegistration {
-  manifest: NodeManifest;
+  manifest: NodeManifestV2;
   /** Pack that owns this node */
   packId: string;
   /** Whether this node is enabled by default when pack is installed */

@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.workflows (
 );
 
 COMMENT ON TABLE public.workflows IS 'A visual workflow definition belonging to a project. definition stores the live Workflow JSON.';
-COMMENT ON COLUMN public.workflows.definition IS 'Canonical Workflow JSON (schemaVersion 1.0). Validated by @qsos/workflow-json before write.';
+COMMENT ON COLUMN public.workflows.definition IS 'Canonical Workflow JSON (schemaVersion 1.0). Validated by @lados/workflow-json before write.';
 
 -- ── Workflow versions (immutable snapshots) ────────────────────────────────────
 

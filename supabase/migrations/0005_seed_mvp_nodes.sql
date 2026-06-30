@@ -11,7 +11,7 @@ VALUES
 
 (
   'core.manual_trigger',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Manual Trigger',
   'Starts a workflow run manually or via the API.',
   '1.0.0', 'core', 'play-circle', '#6B7280',
@@ -23,7 +23,7 @@ VALUES
 ),
 (
   'core.human_approval',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Human Approval',
   'Pauses the workflow and waits for a human to approve or reject.',
   '1.0.0', 'core', 'user-check', '#6B7280',
@@ -35,7 +35,7 @@ VALUES
 ),
 (
   'core.logger',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Logger',
   'Logs a message or data snapshot to the execution log.',
   '1.0.0', 'core', 'terminal', '#6B7280',
@@ -50,7 +50,7 @@ VALUES
 
 (
   'document.upload_file',
-  'qsos.document-pack',
+  'lados.document-pack',
   'Upload File',
   'Accepts a file upload and stores it in the project storage bucket.',
   '1.0.0', 'document', 'upload', '#F59E0B',
@@ -62,7 +62,7 @@ VALUES
 ),
 (
   'document.read_excel',
-  'qsos.document-pack',
+  'lados.document-pack',
   'Read Excel',
   'Reads an Excel spreadsheet and emits rows as structured JSON.',
   '1.0.0', 'document', 'file-spreadsheet', '#F59E0B',
@@ -74,7 +74,7 @@ VALUES
 ),
 (
   'document.save_file',
-  'qsos.document-pack',
+  'lados.document-pack',
   'Save File',
   'Saves generated content to the project storage bucket.',
   '1.0.0', 'document', 'save', '#F59E0B',
@@ -89,7 +89,7 @@ VALUES
 
 (
   'qs.read_boq',
-  'qsos.qs-pack',
+  'lados.qs-pack',
   'Read BOQ',
   'Reads a Bill of Quantities spreadsheet and emits structured BOQ line items.',
   '1.0.0', 'qs', 'list', '#3B82F6',
@@ -101,7 +101,7 @@ VALUES
 ),
 (
   'qs.clean_boq',
-  'qsos.qs-pack',
+  'lados.qs-pack',
   'Clean BOQ',
   'Normalises and deduplicates BOQ items — trims whitespace, merges duplicates, validates quantities.',
   '1.0.0', 'qs', 'filter', '#3B82F6',
@@ -113,7 +113,7 @@ VALUES
 ),
 (
   'qs.classify_trade',
-  'qsos.qs-pack',
+  'lados.qs-pack',
   'Classify Trade',
   'AI-assisted classification of BOQ items into standard trade categories (CIDB/CIBSE).',
   '1.0.0', 'qs', 'tag', '#3B82F6',
@@ -125,7 +125,7 @@ VALUES
 ),
 (
   'qs.split_work_package',
-  'qsos.qs-pack',
+  'lados.qs-pack',
   'Split Work Package',
   'Groups classified BOQ items into work packages ready for RFQ.',
   '1.0.0', 'qs', 'scissors', '#3B82F6',
@@ -140,7 +140,7 @@ VALUES
 
 (
   'procurement.generate_rfq',
-  'qsos.procurement-pack',
+  'lados.procurement-pack',
   'Generate RFQ',
   'Generates a Request for Quotation document from a work package.',
   '1.0.0', 'procurement', 'send', '#10B981',
@@ -155,7 +155,7 @@ VALUES
 
 (
   'ai.classifier',
-  'qsos.ai-pack',
+  'lados.ai-pack',
   'AI Classifier',
   'Classifies input text or structured data using a configurable AI model.',
   '1.0.0', 'ai', 'zap', '#8B5CF6',

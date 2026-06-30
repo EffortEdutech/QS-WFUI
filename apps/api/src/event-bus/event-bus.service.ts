@@ -55,17 +55,21 @@ export interface LadosEvent {
   source_type: EventSourceType | null;
   source_id: string | null;
   actor_id: string | null;
+  correlation_id: string | null;
+  run_id: string | null;
   payload: Record<string, unknown>;
   created_at: string;
 }
 
 export interface PublishEventParams {
-  orgId:      string;
-  type:       LadosEventType;
-  sourceType?: EventSourceType;
-  sourceId?:  string;
-  actorId?:   string;
-  payload?:   Record<string, unknown>;
+  orgId:          string;
+  type:           LadosEventType;
+  sourceType?:    EventSourceType;
+  sourceId?:      string;
+  actorId?:       string;
+  correlationId?: string;
+  runId?:         string;
+  payload?:       Record<string, unknown>;
 }
 
 export interface EventSubscription {
@@ -114,16 +118,18 @@ export class EventBusService {
    * Never throws — failures are logged and swallowed to protect the caller.
    */
   async publish(params: PublishEventParams): Promise<LadosEvent | null> {
-    const { orgId, type, sourceType, sourceId, actorId, payload = {} } = params;
+    const { orgId, type, sourceType, sourceId, actorId, correlationId, runId, payload = {} } = params;
 
     const { data: event, error } = await this.supabase.admin
       .from('lados_events')
       .insert({
-        org_id:      orgId,
+        org_id:         orgId,
         type,
-        source_type: sourceType ?? null,
-        source_id:   sourceId   ?? null,
-        actor_id:    actorId    ?? null,
+        source_type:    sourceType    ?? null,
+        source_id:      sourceId      ?? null,
+        actor_id:       actorId       ?? null,
+        correlation_id: correlationId ?? null,
+        run_id:         runId         ?? null,
         payload,
       })
       .select()
@@ -149,13 +155,15 @@ export class EventBusService {
   async getEvents(
     orgId: string,
     filters: {
-      type?:       string;
-      sourceType?: string;
-      sourceId?:   string;
-      actorId?:    string;
-      from?:       string;   // ISO timestamp
-      to?:         string;   // ISO timestamp
-      limit?:      number;
+      type?:          string;
+      sourceType?:    string;
+      sourceId?:      string;
+      actorId?:       string;
+      correlationId?: string;
+      runId?:         string;
+      from?:          string;   // ISO timestamp
+      to?:            string;   // ISO timestamp
+      limit?:         number;
     } = {},
   ): Promise<LadosEvent[]> {
     let q = this.supabase.admin
@@ -165,12 +173,14 @@ export class EventBusService {
       .order('created_at', { ascending: false })
       .limit(filters.limit ?? 100);
 
-    if (filters.type)       q = q.eq('type', filters.type);
-    if (filters.sourceType) q = q.eq('source_type', filters.sourceType);
-    if (filters.sourceId)   q = q.eq('source_id', filters.sourceId);
-    if (filters.actorId)    q = q.eq('actor_id', filters.actorId);
-    if (filters.from)       q = q.gte('created_at', filters.from);
-    if (filters.to)         q = q.lte('created_at', filters.to);
+    if (filters.type)          q = q.eq('type', filters.type);
+    if (filters.sourceType)    q = q.eq('source_type', filters.sourceType);
+    if (filters.sourceId)      q = q.eq('source_id', filters.sourceId);
+    if (filters.actorId)       q = q.eq('actor_id', filters.actorId);
+    if (filters.correlationId) q = q.eq('correlation_id', filters.correlationId);
+    if (filters.runId)         q = q.eq('run_id', filters.runId);
+    if (filters.from)          q = q.gte('created_at', filters.from);
+    if (filters.to)            q = q.lte('created_at', filters.to);
 
     const { data, error } = await q;
     if (error) throw new Error(`Failed to fetch events: ${error.message}`);

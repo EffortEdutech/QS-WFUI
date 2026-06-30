@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Lados V4 vs ComfyUI</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <span id="markdown-mermaid" aria-hidden="true" data-config="{&quot;darkModeTheme&quot;:&quot;vscode&quot;,&quot;lightModeTheme&quot;:&quot;vscode&quot;,&quot;maxTextSize&quot;:50000,&quot;clickDrag&quot;:&quot;alt&quot;,&quot;showControls&quot;:&quot;onHoverOrFocus&quot;,&quot;resizable&quot;:true,&quot;maxHeight&quot;:&quot;&quot;}"></span>
+				<h1 id="lados-v4-vs-comfyui">Lados V4 vs ComfyUI</h1>
+<h2 id="architectural-comparison">Architectural Comparison</h2>
+<p><strong>Version:</strong> 1.0
+<strong>Document ID:</strong> LADOS-V4-COMP-001
+<strong>Status:</strong> Informational Reference</p>
+<hr>
+<h1 id="executive-summary">Executive Summary</h1>
+<p>This document provides an architectural comparison between <strong>Lados V4</strong> and <strong>ComfyUI</strong>.</p>
+<p>The purpose of this comparison is <strong>not</strong> to determine which platform is better. Instead, it identifies the architectural concepts that inspired Lados V4 while highlighting the unique platform capabilities that distinguish Lados from ComfyUI.</p>
+<p>ComfyUI is one of the best examples of intuitive node-based interaction. Lados V4 adopts many of its successful interaction patterns while extending them into a complete metadata-driven automation platform suitable for business automation, enterprise workflows, reusable resources, and long-term platform extensibility.</p>
+<hr>
+<h1 id="design-philosophy">Design Philosophy</h1>
+<h2 id="comfyui">ComfyUI</h2>
+<p>ComfyUI is primarily an AI workflow editor.</p>
+<p>Its architecture is optimized for:</p>
+<ul>
+<li>Image generation</li>
+<li>Video generation</li>
+<li>Audio generation</li>
+<li>AI experimentation</li>
+<li>Fast node execution</li>
+</ul>
+<p>Everything revolves around the workflow graph.</p>
+<hr>
+<h2 id="lados-v4">Lados V4</h2>
+<p>Lados V4 is a metadata-driven automation platform.</p>
+<p>Its architecture is optimized for:</p>
+<ul>
+<li>Business automation</li>
+<li>AI automation</li>
+<li>Workflow orchestration</li>
+<li>Human approvals</li>
+<li>Enterprise integrations</li>
+<li>Reusable platform components</li>
+<li>Workspace management</li>
+<li>Long-term extensibility</li>
+</ul>
+<p>The workflow is only one asset inside a larger platform.</p>
+<hr>
+<h1 id="high-level-comparison">High-Level Comparison</h1>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>ComfyUI</th>
+<th>Lados V4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primary Purpose</td>
+<td>AI workflow editor</td>
+<td>General-purpose workflow automation platform</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>Node graph</td>
+<td>Metadata-driven platform built on LCE</td>
+</tr>
+<tr>
+<td>Node Definition</td>
+<td>Python classes</td>
+<td>Node Manifest V2 + Runtime Executor</td>
+</tr>
+<tr>
+<td>Execution Engine</td>
+<td>Graph executor</td>
+<td>LCE Execution Engine</td>
+</tr>
+<tr>
+<td>Workflow Format</td>
+<td>JSON graph</td>
+<td>Workflow JSON V2</td>
+</tr>
+<tr>
+<td>Ports</td>
+<td>Strongly typed</td>
+<td>Strongly typed + Manifest-defined</td>
+</tr>
+<tr>
+<td>Parameters</td>
+<td>Per-node widgets</td>
+<td>Manifest-driven Inspector</td>
+</tr>
+<tr>
+<td>Resources</td>
+<td>Mostly embedded model paths</td>
+<td>Workspace Resources with Bindings</td>
+</tr>
+<tr>
+<td>Marketplace</td>
+<td>Custom Nodes</td>
+<td>Packs &amp; Marketplace</td>
+</tr>
+<tr>
+<td>Plugin System</td>
+<td>Python extensions</td>
+<td>Pack SDK</td>
+</tr>
+<tr>
+<td>UI Generation</td>
+<td>Hardcoded node UI</td>
+<td>Generated from Manifest UI Schema</td>
+</tr>
+<tr>
+<td>Execution Monitoring</td>
+<td>Queue + node highlighting</td>
+<td>Execution Monitor + Timeline + Events</td>
+</tr>
+<tr>
+<td>State Management</td>
+<td>UI state inside frontend</td>
+<td>Dedicated State Engine</td>
+</tr>
+<tr>
+<td>Event System</td>
+<td>Limited</td>
+<td>Platform Event Bus</td>
+</tr>
+<tr>
+<td>Workflow Versioning</td>
+<td>Manual JSON</td>
+<td>Built-in versioning</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>Single graph</td>
+<td>Workspace → Projects → Workflows</td>
+</tr>
+<tr>
+<td>Business Objects</td>
+<td>Not applicable</td>
+<td>First-class Business Resources</td>
+</tr>
+<tr>
+<td>Approval Workflows</td>
+<td>No</td>
+<td>Native Approval Engine</td>
+</tr>
+<tr>
+<td>Security</td>
+<td>Minimal</td>
+<td>Security Engine</td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>Usually local</td>
+<td>Multi-user, organization-aware</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>Python</td>
+<td>NestJS APIs + LCE</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>Minimal</td>
+<td>Persistent platform database</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>Core purpose</td>
+<td>Capability provided through Packs</td>
+</tr>
+<tr>
+<td>Extensibility</td>
+<td>Custom Python Nodes</td>
+<td>Pack SDK + Node SDK + Marketplace</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="shared-design-principles">Shared Design Principles</h1>
+<p>Lados intentionally adopts several concepts that have proven successful in ComfyUI.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>ComfyUI</th>
+<th>Lados V4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Visual node graph</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Input ports</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Output ports</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Typed connections</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Drag-and-drop canvas</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Node search</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Reusable nodes</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Workflow serialization</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Live execution feedback</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>These interaction patterns improve usability regardless of domain.</p>
+<hr>
+<h1 id="areas-where-lados-v4-extends-beyond-comfyui">Areas Where Lados V4 Extends Beyond ComfyUI</h1>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>ComfyUI</th>
+<th>Lados V4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workspace Management</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Multiple Projects</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Resource Manager</td>
+<td>Limited</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Resource Bindings</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Business Resources</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Approval Workflows</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Execution History</td>
+<td>Basic</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Audit Trail</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Pack Marketplace</td>
+<td>Partial</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Team Collaboration</td>
+<td>Limited</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Limited</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>API-first Architecture</td>
+<td>Partial</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Multi-tenant Support</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="node-architecture">Node Architecture</h1>
+<h2 id="comfyui-1">ComfyUI</h2>
+<pre><code class="language-text">Node
+
+├── Inputs
+├── Outputs
+├── Widgets
+└── Execute()
+</code></pre>
+<p>Simple, lightweight and highly effective.</p>
+<hr>
+<h2 id="lados-v4-1">Lados V4</h2>
+<pre><code class="language-text">Node Manifest
+
+├── Metadata
+├── Input Ports
+├── Output Ports
+├── Parameters
+├── UI Schema
+├── Resources
+├── Validation
+├── Documentation
+├── Examples
+├── Runtime Contract
+└── Executor
+</code></pre>
+<p>Lados extends the node definition into a self-describing metadata model without changing the user experience.</p>
+<hr>
+<h1 id="resource-philosophy">Resource Philosophy</h1>
+<h2 id="comfyui-2">ComfyUI</h2>
+<p>Resources are usually configured directly inside nodes.</p>
+<pre><code class="language-text">Checkpoint Loader
+
+↓
+
+model.safetensors
+</code></pre>
+<hr>
+<h2 id="lados-v4-2">Lados V4</h2>
+<p>Resources are managed at the workspace level.</p>
+<pre><code class="language-text">Workspace
+
+↓
+
+Resource
+
+↓
+
+Binding
+
+↓
+
+Node
+</code></pre>
+<p>Advantages include:</p>
+<ul>
+<li>Shared configuration</li>
+<li>Credential reuse</li>
+<li>Central governance</li>
+<li>Easier updates</li>
+<li>Reduced duplication</li>
+</ul>
+<hr>
+<h1 id="ui-philosophy">UI Philosophy</h1>
+<h2 id="comfyui-3">ComfyUI</h2>
+<pre><code class="language-text">Canvas
+
+↓
+
+Node
+
+↓
+
+Widgets
+</code></pre>
+<p>Most interactions happen directly on the canvas.</p>
+<hr>
+<h2 id="lados-v4-3">Lados V4</h2>
+<pre><code class="language-text">Explorer
+
+↓
+
+Canvas
+
+↓
+
+Inspector
+</code></pre>
+<p>Responsibilities are separated:</p>
+<ul>
+<li>Explorer manages navigation</li>
+<li>Canvas visualizes workflows</li>
+<li>Inspector edits node configuration</li>
+</ul>
+<p>This architecture scales more effectively for larger workflows.</p>
+<hr>
+<h1 id="platform-philosophy">Platform Philosophy</h1>
+<h2 id="comfyui-4">ComfyUI</h2>
+<pre><code class="language-text">Workflow
+
+↓
+
+Execution
+</code></pre>
+<p>The graph is the product.</p>
+<hr>
+<h2 id="lados-v4-4">Lados V4</h2>
+<pre><code class="language-text">Workspace
+
+↓
+
+Project
+
+↓
+
+Workflow
+
+↓
+
+Execution
+
+↓
+
+Resources
+
+↓
+
+Marketplace
+
+↓
+
+Executions
+</code></pre>
+<p>The workflow is one managed asset inside a larger platform ecosystem.</p>
+<hr>
+<h1 id="ai-philosophy">AI Philosophy</h1>
+<h2 id="comfyui-5">ComfyUI</h2>
+<p>AI is the platform.</p>
+<hr>
+<h2 id="lados-v4-5">Lados V4</h2>
+<p>AI is one capability of the platform.</p>
+<p>Additional capabilities include:</p>
+<ul>
+<li>Business Automation</li>
+<li>Human Approval</li>
+<li>Enterprise Integration</li>
+<li>Document Processing</li>
+<li>Data Transformation</li>
+<li>Notifications</li>
+<li>Reporting</li>
+<li>Artificial Intelligence</li>
+</ul>
+<hr>
+<h1 id="architectural-comparison-1">Architectural Comparison</h1>
+<h2 id="comfyui-6">ComfyUI</h2>
+<pre><code class="language-text">Workflow
+
+↓
+
+Execution
+</code></pre>
+<hr>
+<h2 id="lados-v4-6">Lados V4</h2>
+<pre><code class="language-text">Workspace
+
+├── Projects
+├── Workflows
+├── Resources
+├── Packs
+├── Templates
+├── Executions
+└── Marketplace
+</code></pre>
+<p>The additional platform layers enable governance, collaboration, resource reuse, security, lifecycle management, and extensibility.</p>
+<hr>
+<h1 id="architectural-vision">Architectural Vision</h1>
+<p>ComfyUI inspired Lados in one important area:</p>
+<ul>
+<li>Visual node interaction.</li>
+</ul>
+<p>However, Lados intentionally extends beyond workflow editing by introducing:</p>
+<ul>
+<li>Workspace architecture</li>
+<li>Resource management</li>
+<li>Manifest-driven UI</li>
+<li>Metadata-driven components</li>
+<li>Pack ecosystem</li>
+<li>Lados Core Engine (LCE)</li>
+<li>Event Bus</li>
+<li>State Engine</li>
+<li>Marketplace</li>
+<li>Enterprise governance</li>
+</ul>
+<p>These additions transform Lados into a complete automation platform rather than a workflow editor.</p>
+<hr>
+<h1 id="final-assessment">Final Assessment</h1>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>ComfyUI</th>
+<th>Lados V4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI Workflow Builder</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐⭐⭐⭐☆</td>
+</tr>
+<tr>
+<td>General Workflow Automation</td>
+<td>⭐⭐☆☆☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td>Enterprise Platform</td>
+<td>⭐⭐☆☆☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td>Extensibility</td>
+<td>⭐⭐⭐⭐☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td>Workspace Management</td>
+<td>⭐☆☆☆☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td>Resource Management</td>
+<td>⭐⭐☆☆☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td>UX for Node Editing</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐⭐⭐⭐⭐ <em>(V4)</em></td>
+</tr>
+<tr>
+<td>Platform Architecture</td>
+<td>⭐⭐⭐☆☆</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="conclusion">Conclusion</h1>
+<p>Lados V4 is <strong>not</strong> intended to become &quot;ComfyUI for business workflows.&quot;</p>
+<p>Instead, it adopts the best interaction patterns from ComfyUI—such as typed ports, visual node graphs, and intuitive node editing—while extending them into a complete metadata-driven automation platform.</p>
+<p>The result is a platform capable of supporting business automation, AI workflows, enterprise integrations, reusable resources, marketplace distribution, and long-term extensibility through the Lados Core Engine (LCE).</p>
+<p>ComfyUI remains an important UX inspiration. Lados V4, however, establishes its own architectural identity as a general-purpose automation platform built for growth, governance, and extensibility.</p>
+<h1 id="lados--low-code-application-development--orchestration-system-">LADOS — Low-code Application Development &amp; Orchestration System ⭐</h1>
+<h2 id="automation-vs-application">Automation vs Application</h2>
+<table>
+<thead>
+<tr>
+<th>Criteria</th>
+<th>Automation</th>
+<th>Application</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scope</strong></td>
+<td>Workflow automation only</td>
+<td>Any type of application</td>
+</tr>
+<tr>
+<td><strong>Future-proof</strong></td>
+<td>Medium</td>
+<td>Excellent</td>
+</tr>
+<tr>
+<td><strong>AI Agents</strong></td>
+<td>✔</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>Dashboards</strong></td>
+<td>Limited</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>APIs</strong></td>
+<td>✔</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>Web Apps</strong></td>
+<td>Limited</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>Mobile Apps</strong></td>
+<td>Limited</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>Workflow Builder</strong></td>
+<td>✔</td>
+<td>✔</td>
+</tr>
+<tr>
+<td><strong>Extensible with Packs &amp; Nodes</strong></td>
+<td>✔</td>
+<td>✔</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="why-application-fits-the-lados-vision-better">Why “Application” Fits the LADOS Vision Better</h2>
+<p>From all the LADOS V3 and V4 architecture we have designed, <strong>LADOS is no longer just an automation tool</strong> like n8n or Node-RED.</p>
+<p>It is becoming a platform where users can build:</p>
+<ul>
+<li>AI applications</li>
+<li>Workflow automations</li>
+<li>Internal business systems</li>
+<li>Dashboards</li>
+<li>APIs</li>
+<li>Agentic systems</li>
+<li>Complete digital solutions</li>
+</ul>
+<p><strong>Automation is one capability of the platform, not the platform itself.</strong></p>
+<hr>
+<h2 id="think-of-it-this-way">Think of It This Way</h2>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>n8n</strong></td>
+<td>Automation Platform</td>
+</tr>
+<tr>
+<td><strong>ComfyUI</strong></td>
+<td>AI Workflow Platform</td>
+</tr>
+<tr>
+<td><strong>Retool</strong></td>
+<td>Internal App Builder</td>
+</tr>
+<tr>
+<td><strong>FlutterFlow</strong></td>
+<td>Application Builder</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LADOS aims to combine all of these into a single ecosystem.</strong></p>
+<p>That makes <strong>Application</strong> a better umbrella term than <strong>Automation</strong>.</p>
+<hr>
+<h2 id="preferred-branding">Preferred Branding</h2>
+<h1 id="lados">LADOS</h1>
+<h2 id="low-code-application-development--orchestration-system">Low-code Application Development &amp; Orchestration System</h2>
+<hr>
+<h2 id="marketing-message">Marketing Message</h2>
+<blockquote>
+<p><strong>Build Applications. Orchestrate Intelligence.</strong></p>
+</blockquote>
+<p>Alternative version:</p>
+<blockquote>
+<p><strong>One platform to build, orchestrate, and deploy intelligent applications.</strong></p>
+</blockquote>
+<hr>
+<h2 id="final-positioning-statement">Final Positioning Statement</h2>
+<p>I believe this definition will still fit LADOS five or even ten years from now as the platform grows beyond workflow automation into a complete AI application ecosystem.</p>
+<blockquote>
+<p><strong>LADOS — Low-code Application Development &amp; Orchestration System</strong></p>
+</blockquote>
+
+            
+            
+        </body>
+        </html>

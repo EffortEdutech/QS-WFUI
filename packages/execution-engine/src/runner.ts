@@ -1,16 +1,21 @@
 /**
- * @lados/execution-engine — Workflow Runner
+ * @lados/execution-engine -- Workflow Runner
  *
- * Executes a workflow plan sequentially, node by node.
- * Writes status + log entries for each step.
- * Sprint 6 (S6-002) — in-process mock execution.
- * Sprint 7 (S7-005) — real node resolver support (prefer real over mock).
+ * Executes a workflow plan level by level (BFS wave order).
+ * All steps within the same level have no inter-dependencies and run in parallel
+ * via Promise.allSettled(). An optional concurrency semaphore caps simultaneous
+ * node executions within a level.
+ *
+ * Sprint 6 (S6-002) -- in-process mock execution.
+ * Sprint 7 (S7-005) -- real node resolver support (prefer real over mock).
+ * Phase 6         -- parallel level execution + core.loop/parallel/merge support.
  */
 
 import type { NodeContext, NodeExecuteResult } from '@lados/node-sdk';
 import type {
   RunnerOptions,
   ExecutionResult,
+  ExecutionStep,
   NodeLogEntry,
   NodeRunStatus,
   RunStatus,
@@ -21,7 +26,40 @@ import { getMockExecutor } from './mock-registry';
 
 type NodeExecutor = (ctx: NodeContext) => Promise<NodeExecuteResult>;
 
-// ── Runner ────────────────────────────────────────────────────────────────────
+// ── Concurrency semaphore ─────────────────────────────────────────────────────
+
+/**
+ * Simple semaphore that limits concurrent async tasks.
+ * When limit is undefined or <= 0, all tasks run fully concurrently.
+ */
+async function runWithConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  limit?: number,
+): Promise<PromiseSettledResult<T>[]> {
+  if (!limit || limit <= 0 || limit >= tasks.length) {
+    return Promise.allSettled(tasks.map((t) => t()));
+  }
+
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < tasks.length) {
+      const idx = nextIndex++;
+      try {
+        results[idx] = { status: 'fulfilled', value: await tasks[idx]!() };
+      } catch (err) {
+        results[idx] = { status: 'rejected', reason: err };
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+// -- Runner -------------------------------------------------------------------
 
 export class WorkflowRunner {
   private options: RunnerOptions;
@@ -31,19 +69,31 @@ export class WorkflowRunner {
     this.options = options;
   }
 
-  /** Abort mid-run (best-effort — current node finishes) */
+  /** Abort mid-run (best-effort -- current level finishes) */
   abort() {
     this.aborted = true;
   }
 
   async run(): Promise<ExecutionResult> {
-    const { definition, executionId, workflowId, projectId, organizationId, userId, inputs = {}, variables = {}, skipNodes = [] } = this.options;
-    // Build a fast lookup: nodeId → SkipNodeSpec
+    const {
+      definition,
+      executionId,
+      workflowId,
+      projectId,
+      organizationId,
+      userId,
+      inputs = {},
+      variables = {},
+      skipNodes = [],
+      concurrency,
+    } = this.options;
+
+    // Build a fast lookup: nodeId -> SkipNodeSpec
     const skipMap = new Map<string, SkipNodeSpec>(skipNodes.map((s) => [s.nodeId, s]));
     const startedAt = new Date().toISOString();
     const logs: NodeLogEntry[] = [];
 
-    // ── Plan ───────────────────────────────────────────────────────────────
+    // -- Plan -----------------------------------------------------------------
     const plan = planWorkflow(definition);
 
     if (plan.cycles.length > 0) {
@@ -53,7 +103,7 @@ export class WorkflowRunner {
         logs,
         error: {
           code: 'CYCLE_DETECTED',
-          message: `Workflow contains cycles: ${plan.cycles.map((c) => c.join(' → ')).join('; ')}`,
+          message: `Workflow contains cycles: ${plan.cycles.map((c) => c.join(' -> ')).join('; ')}`,
         },
         startedAt,
         completedAt: new Date().toISOString(),
@@ -61,7 +111,7 @@ export class WorkflowRunner {
       };
     }
 
-    if (plan.steps.length === 0) {
+    if (plan.parallelGroups.length === 0) {
       return {
         status: 'completed',
         outputs: {},
@@ -72,13 +122,11 @@ export class WorkflowRunner {
       };
     }
 
-    // ── Checkpoint restore (Phase 1 resume) ───────────────────────────────
+    // -- Checkpoint restore (Phase 1 resume) ----------------------------------
     const resume = this.options.resumeFromCheckpoint;
-    // Pre-seed nodeOutputs with everything completed before the pause
     const nodeOutputs: Record<string, Record<string, unknown>> = resume
       ? { ...resume.checkpointOutputs }
       : {};
-    // If resuming, inject the approval decision as the paused node's output
     if (resume) {
       nodeOutputs[resume.pausedAtNodeId] = {
         approved:         resume.approvalResult.approved,
@@ -94,143 +142,84 @@ export class WorkflowRunner {
     let pausedAtNodeId: string | undefined;
     let pendingApprovalTaskId: string | undefined;
 
-    // ── Execute steps sequentially ─────────────────────────────────────────
-    for (const step of plan.steps) {
+    // -- Execute levels in sequence; steps within each level run in parallel --
+    levelLoop:
+    for (const group of plan.parallelGroups) {
       if (this.aborted) {
         finalStatus = 'cancelled';
         break;
       }
 
-      // ── Skip nodes already completed in a prior run (resume path) ────────
-      if (resume && nodeOutputs[step.nodeId] !== undefined) {
-        logs.push({
-          nodeId:   step.nodeId,
-          nodeType: step.nodeType,
-          nodeName: step.nodeLabel,
-          status:   'completed',
-          outputs:  nodeOutputs[step.nodeId],
-          messages: ['[RESUME] Restored from checkpoint'],
-        });
-        lastOutputs = nodeOutputs[step.nodeId] ?? {};
-        continue;
-      }
-
-      // ── Skip nodes requested by AI trigger (Phase 11) ────────────────────
-      // e.g. "create_customer" skipped because TSBSB already exists.
-      // The caller provides skip outputs so downstream nodes still get the data.
-      const skipSpec = skipMap.get(step.nodeId);
-      if (skipSpec) {
-        const skipOutputs = skipSpec.outputs ?? {};
-        nodeOutputs[step.nodeId] = skipOutputs;
-        lastOutputs = skipOutputs;
-        logs.push({
-          nodeId:   step.nodeId,
-          nodeType: step.nodeType,
-          nodeName: step.nodeLabel,
-          status:   'skipped',
-          outputs:  skipOutputs,
-          messages: [
-            `[SKIP] ${skipSpec.reason ?? 'Node skipped by AI workflow trigger'}`,
-            `[SKIP] Injected outputs: ${JSON.stringify(skipOutputs)}`,
-          ],
-        });
-        continue;
-      }
-
-      const nodeStartedAt = new Date().toISOString();
-      const logEntry: NodeLogEntry = {
-        nodeId: step.nodeId,
-        nodeType: step.nodeType,
-        nodeName: step.nodeLabel,
-        status: 'running' as NodeRunStatus,
-        inputs: this._resolveInputs(step.nodeId, step.dependsOn, nodeOutputs, inputs),
-        messages: [],
-        startedAt: nodeStartedAt,
-      };
-
-      // Build NodeContext
-      const nodeMessages: string[] = [];
-      const ctx: NodeContext = {
-        executionId: executionId ?? `run-${Date.now()}`,
-        workflowId,
-        projectId,
-        organizationId,
-        userId,
-        config: step.config,
-        inputs: logEntry.inputs ?? {},
-        variables,
-        logger: {
-          info:  (msg: string) => nodeMessages.push(`[INFO]  ${msg}`),
-          warn:  (msg: string) => nodeMessages.push(`[WARN]  ${msg}`),
-          error: (msg: string) => nodeMessages.push(`[ERROR] ${msg}`),
-        },
-      };
-
-      try {
-        // Prefer real implementation when available, fall back to mock
-        const realExecutor = this.options.nodeResolver?.(step.nodeType) ?? null;
-        const executor: NodeExecutor = realExecutor ?? getMockExecutor(step.nodeType);
-        const isReal = realExecutor !== null;
-        ctx.logger.info(`[${isReal ? 'REAL' : 'MOCK'}] Executing ${step.nodeType}`);
-        const result = await executor(ctx);
-
-        const nodeCompletedAt = new Date().toISOString();
-        const durationMs = new Date(nodeCompletedAt).getTime() - new Date(nodeStartedAt).getTime();
-
-        nodeMessages.push(...(result.logs ?? []).map(String));
-
-        // ── Phase 1: handle pause signal from human_approval ─────────────
-        if (result.status === 'paused') {
-          pausedAtNodeId        = step.nodeId;
-          pendingApprovalTaskId = result.outputs?.['approval_task_id'] as string | undefined;
-          logEntry.status       = 'waiting';
-          logEntry.outputs      = result.outputs ?? {};
-          logEntry.messages     = nodeMessages;
-          logEntry.completedAt  = nodeCompletedAt;
-          logEntry.durationMs   = durationMs;
-          logs.push(logEntry);
-          finalStatus = 'paused';
-          break;
+      // Filter out already-completed steps (resume path)
+      const pendingSteps = group.filter((step) => {
+        if (resume && nodeOutputs[step.nodeId] !== undefined) {
+          // Restore from checkpoint
+          logs.push({
+            nodeId:   step.nodeId,
+            nodeType: step.nodeType,
+            nodeName: step.nodeLabel,
+            status:   'completed',
+            outputs:  nodeOutputs[step.nodeId],
+            messages: ['[RESUME] Restored from checkpoint'],
+          });
+          lastOutputs = nodeOutputs[step.nodeId] ?? {};
+          return false;
         }
+        return true;
+      });
 
-        if (result.status === 'failure') {
-          logEntry.status = 'failed';
-          logEntry.error = result.error ?? { code: 'NODE_FAILED', message: 'Node reported failure' };
-          logEntry.outputs = result.outputs ?? {};
-          logEntry.messages = nodeMessages;
-          logEntry.completedAt = nodeCompletedAt;
-          logEntry.durationMs = durationMs;
-          logs.push(logEntry);
+      if (pendingSteps.length === 0) continue;
+
+      // Build parallel tasks for this level
+      const levelTasks = pendingSteps.map((step) => () => this._executeStep(
+        step, nodeOutputs, inputs, variables,
+        { executionId, workflowId, projectId, organizationId, userId },
+        skipMap,
+      ));
+
+      const settled = await runWithConcurrency(levelTasks, concurrency);
+
+      // Collect results
+      for (let i = 0; i < settled.length; i++) {
+        const result = settled[i]!;   // safe: iterating within bounds
+        const step = pendingSteps[i]!;
+
+        if (result.status === 'rejected') {
+          // Unhandled exception from _executeStep (shouldn't happen — it catches internally)
+          const reason = String(result.reason as unknown);
+          logs.push({
+            nodeId:   step.nodeId,
+            nodeType: step.nodeType,
+            nodeName: step.nodeLabel,
+            status:   'failed',
+            messages: [`[ERROR] Unexpected task rejection: ${reason}`],
+            error:    { code: 'TASK_REJECTED', message: reason },
+          });
           finalStatus = 'failed';
-          break;
+          break levelLoop;
+        } else {
+          const { logEntry, nodeOutput, stepStatus } = result.value;
+          logs.push(logEntry);
+
+          if (stepStatus === 'paused') {
+            pausedAtNodeId        = step.nodeId;
+            pendingApprovalTaskId = logEntry.outputs?.['approval_task_id'] as string | undefined;
+            finalStatus = 'paused';
+            break levelLoop;
+          }
+
+          if (stepStatus === 'failed') {
+            finalStatus = 'failed';
+            break levelLoop;
+          }
+
+          // Success
+          nodeOutputs[step.nodeId] = nodeOutput;
+          lastOutputs = nodeOutput;
         }
-
-        // Success
-        nodeOutputs[step.nodeId] = result.outputs ?? {};
-        lastOutputs = result.outputs ?? {};
-
-        logEntry.status = 'completed';
-        logEntry.outputs = result.outputs ?? {};
-        logEntry.messages = nodeMessages;
-        logEntry.completedAt = nodeCompletedAt;
-        logEntry.durationMs = durationMs;
-        logs.push(logEntry);
-
-      } catch (err: unknown) {
-        const nodeCompletedAt = new Date().toISOString();
-        const durationMs = new Date(nodeCompletedAt).getTime() - new Date(nodeStartedAt).getTime();
-        const message = err instanceof Error ? err.message : String(err);
-
-        nodeMessages.push(`[ERROR] Unhandled exception: ${message}`);
-        logEntry.status = 'failed';
-        logEntry.error = { code: 'UNHANDLED_EXCEPTION', message };
-        logEntry.messages = nodeMessages;
-        logEntry.completedAt = nodeCompletedAt;
-        logEntry.durationMs = durationMs;
-        logs.push(logEntry);
-        finalStatus = 'failed';
-        break;
       }
+
+      if (finalStatus !== 'completed') break;
     }
 
     // Mark remaining nodes: skipped (failure/cancel) or waiting (paused)
@@ -242,15 +231,18 @@ export class WorkflowRunner {
           nodeType: step.nodeType,
           nodeName: step.nodeLabel,
           status:   finalStatus === 'paused' ? 'waiting' : 'skipped',
-          messages: [finalStatus === 'paused'
-            ? 'Waiting — workflow paused for human approval'
-            : 'Skipped due to earlier failure or cancellation'],
+          messages: [
+            finalStatus === 'paused'
+              ? 'Waiting -- workflow paused for human approval'
+              : 'Skipped due to earlier failure or cancellation',
+          ],
         });
       }
     }
 
     const completedAt = new Date().toISOString();
-    const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+    const durationMs  =
+      new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
     return {
       status: finalStatus,
@@ -267,7 +259,128 @@ export class WorkflowRunner {
     };
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
+  // -- Execute a single step ---------------------------------------------------
+
+  private async _executeStep(
+    step: ExecutionStep,
+    nodeOutputs: Record<string, Record<string, unknown>>,
+    workflowInputs: Record<string, unknown>,
+    variables: Record<string, unknown>,
+    ctx: {
+      executionId?: string;
+      workflowId: string;
+      projectId: string;
+      organizationId: string;
+      userId: string;
+    },
+    skipMap: Map<string, SkipNodeSpec>,
+  ): Promise<{
+    logEntry: NodeLogEntry;
+    nodeOutput: Record<string, unknown>;
+    stepStatus: 'completed' | 'failed' | 'paused' | 'skipped';
+  }> {
+    // -- Skip nodes requested by AI trigger (Phase 11) ----------------------
+    const skipSpec = skipMap.get(step.nodeId);
+    if (skipSpec) {
+      const skipOutputs = skipSpec.outputs ?? {};
+      return {
+        logEntry: {
+          nodeId:   step.nodeId,
+          nodeType: step.nodeType,
+          nodeName: step.nodeLabel,
+          status:   'skipped',
+          outputs:  skipOutputs,
+          messages: [
+            `[SKIP] ${skipSpec.reason ?? 'Node skipped by AI workflow trigger'}`,
+            `[SKIP] Injected outputs: ${JSON.stringify(skipOutputs)}`,
+          ],
+        },
+        nodeOutput: skipOutputs,
+        stepStatus: 'skipped',
+      };
+    }
+
+    const nodeStartedAt = new Date().toISOString();
+    const resolvedInputs = this._resolveInputs(step.nodeId, step.dependsOn, nodeOutputs, workflowInputs);
+
+    const logEntry: NodeLogEntry = {
+      nodeId:    step.nodeId,
+      nodeType:  step.nodeType,
+      nodeName:  step.nodeLabel,
+      status:    'running' as NodeRunStatus,
+      inputs:    resolvedInputs,
+      messages:  [],
+      startedAt: nodeStartedAt,
+    };
+
+    const nodeMessages: string[] = [];
+    const nodeCtx: NodeContext = {
+      nodeId:         step.nodeId,
+      nodeType:       step.nodeType,
+      upstream:       nodeOutputs,
+      executionId:    ctx.executionId ?? `run-${Date.now()}`,
+      workflowId:     ctx.workflowId,
+      projectId:      ctx.projectId,
+      organizationId: ctx.organizationId,
+      userId:         ctx.userId,
+      config:         step.config,
+      inputs:         resolvedInputs,
+      variables,
+      logger: {
+        info:  (msg: string) => nodeMessages.push(`[INFO]  ${msg}`),
+        warn:  (msg: string) => nodeMessages.push(`[WARN]  ${msg}`),
+        error: (msg: string) => nodeMessages.push(`[ERROR] ${msg}`),
+      },
+    };
+
+    try {
+      const realExecutor = this.options.nodeResolver?.(step.nodeType) ?? null;
+      const executor: NodeExecutor = realExecutor ?? getMockExecutor(step.nodeType);
+      const isReal = realExecutor !== null;
+      nodeCtx.logger.info(`[${isReal ? 'REAL' : 'MOCK'}] Executing ${step.nodeType}`);
+
+      const result = await executor(nodeCtx);
+      const nodeCompletedAt = new Date().toISOString();
+      const durationMs = new Date(nodeCompletedAt).getTime() - new Date(nodeStartedAt).getTime();
+
+      nodeMessages.push(...(result.logs ?? []).map(String));
+      logEntry.messages    = nodeMessages;
+      logEntry.completedAt = nodeCompletedAt;
+      logEntry.durationMs  = durationMs;
+      logEntry.outputs     = result.outputs ?? {};
+
+      // -- Phase 1: handle pause signal from human_approval -------------------
+      if (result.status === 'paused') {
+        logEntry.status = 'waiting';
+        return { logEntry, nodeOutput: result.outputs ?? {}, stepStatus: 'paused' };
+      }
+
+      if (result.status === 'failure') {
+        logEntry.status = 'failed';
+        logEntry.error  = result.error ?? { code: 'NODE_FAILED', message: 'Node reported failure' };
+        return { logEntry, nodeOutput: result.outputs ?? {}, stepStatus: 'failed' };
+      }
+
+      logEntry.status = 'completed';
+      return { logEntry, nodeOutput: result.outputs ?? {}, stepStatus: 'completed' };
+
+    } catch (err: unknown) {
+      const nodeCompletedAt = new Date().toISOString();
+      const durationMs = new Date(nodeCompletedAt).getTime() - new Date(nodeStartedAt).getTime();
+      const message = err instanceof Error ? err.message : String(err);
+
+      nodeMessages.push(`[ERROR] Unhandled exception: ${message}`);
+      logEntry.status      = 'failed';
+      logEntry.error       = { code: 'UNHANDLED_EXCEPTION', message };
+      logEntry.messages    = nodeMessages;
+      logEntry.completedAt = nodeCompletedAt;
+      logEntry.durationMs  = durationMs;
+
+      return { logEntry, nodeOutput: {}, stepStatus: 'failed' };
+    }
+  }
+
+  // -- Private helpers -------------------------------------------------------
 
   /**
    * Merge outputs from all dependency nodes to form this node's inputs.
@@ -286,14 +399,13 @@ export class WorkflowRunner {
       const depOutputs = nodeOutputs[depId] ?? {};
       Object.assign(merged, depOutputs);
     }
-    // Also include top-level workflow inputs (e.g. file_id passed from UI)
     Object.assign(merged, workflowInputs);
     return merged;
   }
 }
 
 /**
- * Convenience function — create a runner and execute immediately.
+ * Convenience function -- create a runner and execute immediately.
  */
 export async function runWorkflow(options: RunnerOptions): Promise<ExecutionResult> {
   const runner = new WorkflowRunner(options);

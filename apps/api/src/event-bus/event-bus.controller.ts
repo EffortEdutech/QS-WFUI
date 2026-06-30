@@ -1,11 +1,13 @@
 /**
- * EventBusController — Phase 4
+ * EventBusController — Phase 4 / Phase 3A
  *
- * GET    /events                      — query event history
- * GET    /events/subscriptions        — list event subscriptions
- * POST   /events/subscriptions        — create an event subscription
- * PATCH  /events/subscriptions/:id    — enable / disable a subscription
- * DELETE /events/subscriptions/:id    — delete a subscription
+ * GET    /events                          — query event history
+ * GET    /events/correlation/:id          — events by correlation_id
+ * GET    /events/run/:runId               — events by run_id
+ * GET    /events/subscriptions            — list event subscriptions
+ * POST   /events/subscriptions            — create an event subscription
+ * PATCH  /events/subscriptions/:id        — enable / disable a subscription
+ * DELETE /events/subscriptions/:id        — delete a subscription
  */
 import {
   Controller, Get, Post, Patch, Delete,
@@ -52,6 +54,32 @@ export class EventBusController {
   ) {
     return this.eventBus.getEvents(this.requireOrg(orgId), {
       type, sourceType, sourceId, actorId, from, to,
+      limit: limitStr ? parseInt(limitStr, 10) : undefined,
+    });
+  }
+
+  // ── Correlation / run shortcuts ───────────────────────────────────────────
+
+  @Get('correlation/:correlationId')
+  getByCorrelation(
+    @Param('correlationId') correlationId: string,
+    @Query('organizationId') orgId: string,
+    @Query('limit') limitStr?: string,
+  ) {
+    return this.eventBus.getEvents(this.requireOrg(orgId), {
+      correlationId,
+      limit: limitStr ? parseInt(limitStr, 10) : undefined,
+    });
+  }
+
+  @Get('run/:runId')
+  getByRun(
+    @Param('runId') runId: string,
+    @Query('organizationId') orgId: string,
+    @Query('limit') limitStr?: string,
+  ) {
+    return this.eventBus.getEvents(this.requireOrg(orgId), {
+      runId,
       limit: limitStr ? parseInt(limitStr, 10) : undefined,
     });
   }

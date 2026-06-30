@@ -49,3 +49,5 @@ supabase/.temp/
 ~$*.ppt
 
 _tmp_*
+
+packages/@lados/node-sdk/node-sdk

@@ -44,13 +44,31 @@ interface PackHealth {
 // ── Pack icon map ─────────────────────────────────────────────────────────────
 
 const PACK_EMOJI: Record<string, string> = {
-  'qsos.core-pack':          '⚙️',
-  'qsos.qs-pack':            '📐',
-  'qsos.procurement-pack':   '🛒',
-  'qsos.document-pack':      '📄',
-  'qsos.ai-pack':            '🤖',
+  'lados.core-pack':          '⚙️',
+  'lados.qs-pack':            '📐',
+  'lados.procurement-pack':   '🛒',
+  'lados.document-pack':      '📄',
+  'lados.ai-pack':            '🤖',
   'lados.foundation-pack':   '🏗️',
   'lados.contractor-pack':   '🚛',
+  'lados.construction-pack': '🏗️',
+  'lados.finance-pack':      '💰',
+  'lados.notifications-pack':'🔔',
+};
+
+/** Convert a Lucide icon name string (stored in DB) to an emoji fallback */
+const LUCIDE_TO_EMOJI: Record<string, string> = {
+  'banknote':      '💰',
+  'hard-hat':      '🪖',
+  'bell':          '🔔',
+  'cpu':           '⚙️',
+  'layers':        '🏗️',
+  'bar-chart-2':   '📊',
+  'file-text':     '📄',
+  'shopping-cart': '🛒',
+  'truck':         '🚛',
+  'bot':           '🤖',
+  'package':       '📦',
 };
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -155,6 +173,7 @@ export default function PacksPage() {
     try {
       const res = await apiClient.post<{ synced: string[]; skipped: string[]; errors: string[] }>(
         '/packs/sync',
+        {},
       );
       const { synced, skipped, errors: errs } = res.data ?? { synced: [], skipped: [], errors: [] };
       setSyncMsg(
@@ -175,7 +194,7 @@ export default function PacksPage() {
     setToggling(pack.id);
     try {
       const action = pack.is_enabled ? 'disable' : 'enable';
-      await apiClient.patch(`/packs/${encodeURIComponent(pack.id)}/${action}`);
+      await apiClient.patch(`/packs/${encodeURIComponent(pack.id)}/${action}`, {});
       loadPacks();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Toggle failed';
@@ -265,7 +284,7 @@ export default function PacksPage() {
                         className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
                         style={{ backgroundColor: pack.color ? `${pack.color}22` : '#F3F4F6' }}
                       >
-                        <span>{PACK_EMOJI[pack.id] ?? pack.icon ?? '📦'}</span>
+                        <span>{PACK_EMOJI[pack.id] ?? LUCIDE_TO_EMOJI[pack.icon ?? ''] ?? '📦'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {pack.is_official && (

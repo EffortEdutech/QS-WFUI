@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
+import { resolveIcon, PACK_EMOJI } from '@/lib/icon-map';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,17 +58,59 @@ interface NodeOverride {
   is_enabled: boolean;
 }
 
-const PACK_EMOJI: Record<string, string> = {
-  'qsos.core-pack':          '⚙️',
-  'qsos.qs-pack':            '📐',
-  'qsos.procurement-pack':   '🛒',
-  'qsos.document-pack':      '📄',
-  'qsos.ai-pack':            '🤖',
-  'lados.foundation-pack':   '🏗️',
-  'lados.contractor-pack':   '🚛',
+const CATEGORY_ORDER = ['control', 'input', 'processing', 'output', 'ai', 'approval', 'notification', 'user'];
+
+/** Human-readable labels + emoji for node category codes */
+const CATEGORY_LABEL: Record<string, string> = {
+  core:         '⚙️ Core',
+  control:      '🔀 Control',
+  input:        '⬇️ Input',
+  output:       '⬆️ Output',
+  processing:   '⚙️ Processing',
+  ai:           '🤖 AI',
+  approval:     '✅ Approval',
+  notification: '🔔 Notification',
+  user:         '👤 User',
+  resource:     '📦 Resource',
+  event:        '⚡ Event',
+  state:        '🔄 State',
+  artifact:     '📄 Artifact',
+  document:     '📄 Document',
+  finance:      '💰 Finance',
+  procurement:  '🛒 Procurement',
+  qs:           '📐 QS',
+  construction: '🏗️ Construction',
+  contractor:   '🚛 Contractor',
+  fleet:        '🚛 Fleet',
+  integration:  '🔌 Integration',
+  scheduler:    '⏱️ Scheduler',
+  utility:      '🔧 Utility',
+  trigger:      '⚡ Trigger',
+  delay:        '⏱️ Delay',
+  project:      '📂 Project',
+  http:         '🌐 HTTP',
 };
 
-const CATEGORY_ORDER = ['control', 'input', 'processing', 'output', 'ai', 'approval', 'notification', 'user'];
+/** Service chip definitions (matches NodePalette ServiceChip) */
+const SERVICE_ICONS: Record<string, string> = {
+  'ai-service':            '🤖',
+  'storage-service':       '💾',
+  'audit-service':         '📋',
+  'auth-service':          '🔐',
+  'ocr-service':           '🔍',
+  'document-service':      '📄',
+  'notification-service':  '🔔',
+};
+
+const SERVICE_LABELS: Record<string, string> = {
+  'ai-service':            'AI',
+  'storage-service':       'Storage',
+  'audit-service':         'Audit',
+  'auth-service':          'Auth',
+  'ocr-service':           'OCR',
+  'document-service':      'Docs',
+  'notification-service':  'Notify',
+};
 
 function groupByCategory(nodes: PackNode[]): Map<string, PackNode[]> {
   const map = new Map<string, PackNode[]>();
@@ -221,6 +264,7 @@ export default function PackDetailPage({ params }: PageProps) {
       const action = isCurrentlyEnabled ? 'disable' : 'enable';
       await apiClient.patch(
         `/packs/${encodeURIComponent(packId)}/nodes/${encodeURIComponent(nodeType)}/${action}?organizationId=${orgId}`,
+        {},
       );
       await loadOverrides(orgId);
     } catch (e: unknown) {
@@ -276,7 +320,7 @@ export default function PackDetailPage({ params }: PageProps) {
             className="h-14 w-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
             style={{ backgroundColor: pack.color ? `${pack.color}22` : '#F3F4F6' }}
           >
-            {PACK_EMOJI[pack.id] ?? pack.icon ?? '📦'}
+            {PACK_EMOJI[pack.id] ?? resolveIcon(pack.icon) ?? '📦'}
           </div>
           <div className="flex-1 min-w-0">
             {/* Name + badges row */}
@@ -359,8 +403,8 @@ export default function PackDetailPage({ params }: PageProps) {
 
         {[...grouped.entries()].map(([category, catNodes]) => (
           <div key={category}>
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2 capitalize">
-              {category}
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
+              {CATEGORY_LABEL[category] ?? category.charAt(0).toUpperCase() + category.slice(1)}
             </h3>
             <div className="space-y-2">
               {catNodes.map((node) => {
@@ -386,7 +430,7 @@ export default function PackDetailPage({ params }: PageProps) {
                           : '#F3F4F6',
                       }}
                     >
-                      {node.icon ?? (
+                      {resolveIcon(node.icon) ?? (
                         <span
                           className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: node.color ?? pack.color ?? '#6B7280' }}
@@ -406,9 +450,10 @@ export default function PackDetailPage({ params }: PageProps) {
                           {node.uses_services.map((svc) => (
                             <span
                               key={svc}
-                              className="rounded px-1.5 py-0.5 text-[9px] font-medium bg-blue-50 text-blue-600 border border-blue-100"
+                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium bg-blue-50 text-blue-600 border border-blue-100"
+                              title={svc}
                             >
-                              {svc}
+                              {SERVICE_ICONS[svc] ?? '⚙️'} {SERVICE_LABELS[svc] ?? svc}
                             </span>
                           ))}
                         </div>

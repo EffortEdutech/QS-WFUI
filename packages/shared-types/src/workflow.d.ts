@@ -6,8 +6,25 @@ export interface QSWorkflowDefinition {
     nodes: WorkflowNodeInstance[];
     connections: WorkflowConnection[];
     variables?: WorkflowVariable[];
+    triggers?: WorkflowTrigger[];
     metadata?: WorkflowMetadata;
 }
+export interface EventTrigger {
+    type: 'event';
+    eventType: string;
+    filter?: Record<string, unknown>;
+}
+export interface WebhookTrigger {
+    type: 'webhook';
+    path: string;
+}
+export interface ScheduleTrigger {
+    type: 'schedule';
+    cronExpression: string;
+    timezone?: string;
+    label?: string;
+}
+export type WorkflowTrigger = EventTrigger | WebhookTrigger | ScheduleTrigger;
 export interface WorkflowInfo {
     id: WorkflowId;
     name: string;

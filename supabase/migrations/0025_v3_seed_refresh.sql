@@ -330,7 +330,7 @@ VALUES
 
 (
   'ai.summarize_work_package',
-  'qsos.ai-pack',
+  'lados.ai-pack',
   'Summarize Work Package',
   'Produces a concise natural-language summary of a work package for use in cover letters, client reports, or email notifications.',
   '1.0.0', 'ai', 'file-text', '#8B5CF6',
@@ -366,7 +366,7 @@ VALUES
 
 (
   'ai.detect_missing_data',
-  'qsos.ai-pack',
+  'lados.ai-pack',
   'Detect Missing Data',
   'Scans BOQ items or structured data for missing quantities, rates, descriptions, or trade classifications and returns a report with remediation suggestions.',
   '1.0.0', 'ai', 'alert-triangle', '#8B5CF6',

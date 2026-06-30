@@ -102,4 +102,45 @@ export class ExecutionQueueService implements OnModuleInit, OnModuleDestroy {
     );
     this.logger.debug(`Enqueued RESUME for run ${payload.runId}`);
   }
+
+  // ── Ops / health ────────────────────────────────────────────────────────────
+
+  /**
+   * Phase 12 — BullMQ job counts for the execution queue.
+   * Returns null when Redis is not configured (in-process fallback mode).
+   * Shape: { waiting, active, completed, failed, delayed, paused } — all numbers.
+   */
+  async getStats(): Promise<{ [key: string]: number } | null> {
+    if (!this.queue) return null;
+    return this.queue.getJobCounts(
+      'waiting', 'active', 'completed', 'failed', 'delayed', 'paused',
+    );
+  }
+
+  /**
+   * Phase 12 — most recent failed jobs (dead-letter view for ops).
+   * @param limit max jobs to return (capped at 100)
+   */
+  async getFailedJobs(limit = 20): Promise<
+    Array<{
+      jobId:    string | undefined;
+      runId:    string;
+      type:     string;
+      failedAt: number | undefined;
+      reason:   string;
+      attempts: number;
+    }>
+  > {
+    if (!this.queue) return [];
+    const safeLimit = Math.min(limit, 100);
+    const jobs = await this.queue.getFailed(0, safeLimit - 1);
+    return jobs.map((j) => ({
+      jobId:    j.id,
+      runId:    j.data.runId,
+      type:     j.data.type,
+      failedAt: j.finishedOn,
+      reason:   j.failedReason ?? 'unknown',
+      attempts: j.attemptsMade,
+    }));
+  }
 }

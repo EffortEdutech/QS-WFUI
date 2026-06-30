@@ -15,6 +15,7 @@ import { realGeneratePo }  from './nodes/procurement-generate-po';
 export { type ILibraryService }  from './nodes/procurement-generate-rfq';
 export { type RfqArtifact }      from './nodes/procurement-generate-rfq';
 export { type PoArtifact, type PoLineItem } from './nodes/procurement-generate-po';
+export { nodeManifests }         from './manifests';
 
 export const PACK_ID      = 'procurement-pack' as const;
 export const PACK_VERSION = '0.2.0' as const;

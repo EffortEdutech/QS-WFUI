@@ -1,9 +1,10 @@
 /**
- * StateEngineController — Phase 5
+ * StateEngineController — Phase 5 / Phase 3C
  *
- * GET  /state-machines                — list machines for an org (system + org-specific)
- * GET  /state-machines/:resourceType  — get effective machine for a resource type
- * POST /state-machines                — create org-specific override machine
+ * GET  /state-machines                                         — list machines for an org
+ * GET  /state-machines/:resourceType/transitions?from=<state>  — available transitions
+ * GET  /state-machines/:resourceType                           — effective machine definition
+ * POST /state-machines                                         — create org-specific override
  */
 import {
   Controller, Get, Post, Body, Param, Query,
@@ -32,6 +33,19 @@ export class StateEngineController {
   @Get()
   listMachines(@Query('organizationId') orgId: string) {
     return this.stateEngine.listMachines(this.requireOrg(orgId));
+  }
+
+  @Get(':resourceType/transitions')
+  async getAvailableTransitions(
+    @Param('resourceType') resourceType: string,
+    @Query('organizationId') orgId: string,
+    @Query('from') fromState: string,
+  ) {
+    if (!fromState) throw new BadRequestException('from query param is required');
+    const data = await this.stateEngine.getAvailableTransitions(
+      resourceType, fromState, this.requireOrg(orgId),
+    );
+    return { success: true, data };
   }
 
   @Get(':resourceType')

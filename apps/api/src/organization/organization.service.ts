@@ -1,16 +1,23 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import { SupabaseService } from '../common/supabase/supabase.service';
+import { SupabaseService }       from '../common/supabase/supabase.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { NodeRegistryService }   from '../node-registry/node-registry.service';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly logger = new Logger(OrganizationService.name);
+
+  constructor(
+    private readonly supabase:     SupabaseService,
+    private readonly nodeRegistry: NodeRegistryService,  // Phase 1H
+  ) {}
 
   /** List all organizations the user is a member of */
   async findAllForUser(userId: string) {
@@ -27,7 +34,7 @@ export class OrganizationService {
     }));
   }
 
-  /** Get a single organization — only if user is a member */
+  /** Get a single organization -- only if user is a member */
   async findOne(id: string, userId: string) {
     const { data, error } = await this.supabase.admin
       .from('organization_members')
@@ -74,10 +81,17 @@ export class OrganizationService {
 
     if (memberError) throw new Error(memberError.message);
 
+    // Phase 1H -- ensure Foundation Pack node manifests are seeded for this org
+    // (non-blocking: PackInstallerService.onModuleInit() seeds globally on startup,
+    //  but this guard handles cold-start races on first-ever org creation)
+    void this.nodeRegistry.seedForOrg(org.id).catch((err) => {
+      this.logger.warn(`seedForOrg failed for org ${org.id}: ${String(err)}`);
+    });
+
     return org;
   }
 
-  /** Update an organization — caller must be owner or admin */
+  /** Update an organization -- caller must be owner or admin */
   async update(id: string, dto: UpdateOrganizationDto, userId: string) {
     await this.assertRole(id, userId, ['owner', 'admin']);
 
@@ -96,7 +110,7 @@ export class OrganizationService {
     return data;
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // -- Helpers --
 
   private async assertRole(orgId: string, userId: string, roles: string[]) {
     const { data } = await this.supabase.admin

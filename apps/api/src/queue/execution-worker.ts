@@ -22,6 +22,8 @@ import { LibraryService } from '../library/library.service';
 import { AiService }      from '../ai/ai.service';
 import { DocumentService } from '../document/document.service';
 import { NotificationService } from '../notification/notification.service';
+import { EmailService }        from '../notification/email.service';   // Phase 10
+import { SmsService }          from '../notification/sms.service';     // Phase 10
 import { ResourceService } from '../resource/resource.service';
 import { EventBusService } from '../event-bus/event-bus.service';
 import { StateEngineService } from '../state-engine/state-engine.service';
@@ -60,11 +62,14 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
     private readonly artifactService: ArtifactService,
     private readonly queueService:  ExecutionQueueService,
     private readonly emitter:       EventEmitter2,
+    private readonly emailService:  EmailService,    // Phase 10
+    private readonly smsService:    SmsService,      // Phase 10
   ) {
     this.nodeResolver = buildRealNodeResolver(
       fileService, libraryService, aiService, documentService,
       notificationService, resourceService, eventBus, stateEngine,
       approvalTaskCreator, artifactService,
+      emailService, smsService,
     );
   }
 

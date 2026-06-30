@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'packages/@lados/*'
   - 'packs/*'
 allowBuilds:
   '@nestjs/core': false

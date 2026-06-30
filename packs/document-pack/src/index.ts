@@ -13,6 +13,7 @@ import { realReadExcel }  from './nodes/document-read-excel';
 
 export { type IFileService, type ILibraryService, type IDocumentService, type ExcelRow }
   from './nodes/document-read-excel';
+export { nodeManifests } from './manifests';
 
 export const PACK_ID      = 'document-pack' as const;
 export const PACK_VERSION = '0.2.0' as const;

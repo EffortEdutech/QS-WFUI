@@ -132,7 +132,7 @@ function StateBadge({ state }: { state: string }) {
 function ResourceCard({
   resource,
   viewConfig,
-  orgId,
+  orgId: _orgId,
   onAction,
   actionBusy,
   driverMode,
@@ -147,10 +147,10 @@ function ResourceCard({
   const list    = viewConfig?.views?.list;
   const actions = viewConfig?.views?.inlineActions ?? [];
 
-  const primary   = list ? getField(resource, list.primaryField)   : resource.name;
-  const secondary = list?.secondaryField ? getField(resource, list.secondaryField) : null;
-  const badge     = list?.badgeField     ? getField(resource, list.badgeField)     : resource.state;
-  const counter   = list?.counterField   ? getField(resource, list.counterField)   : null;
+  const primary:   string        = list ? getField(resource, list.primaryField)   : resource.name;
+  const secondary: string | null = list?.secondaryField ? getField(resource, list.secondaryField) : null;
+  const badge:     string        = list?.badgeField     ? getField(resource, list.badgeField)     : resource.state;
+  const counter:   string | null = list?.counterField   ? getField(resource, list.counterField)   : null;
 
   const visibleActions = actions.filter((a) => a.visibleInStates.includes(resource.state));
   const isBusy = actionBusy === resource.id;
@@ -178,9 +178,9 @@ function ResourceCard({
         </div>
 
         {/* Secondary field */}
-        {secondary && (
+        {secondary ? (
           <p className="mt-1 text-xs text-gray-500 truncate pl-7">{secondary}</p>
-        )}
+        ) : null}
 
         {/* Counter + date */}
         <div className="mt-2 flex items-center justify-between pl-7">
@@ -195,7 +195,7 @@ function ResourceCard({
         </div>
 
         {/* Fuel receipt — show AI extracted data if present */}
-        {resource.type === 'fuel_receipt' && resource.data?.aiExtracted && (() => {
+        {resource.type === 'fuel_receipt' && resource.data?.aiExtracted != null ? (() => {
           type AiEx = { amount?: number|null; liters?: number|null; fuelType?: string; confidence?: number; approvedByHuman?: boolean };
           const ai = resource.data.aiExtracted as AiEx;
           if (ai.amount == null && ai.liters == null) return null;
@@ -210,23 +210,23 @@ function ResourceCard({
               </div>
             </div>
           );
-        })()}
+        })() : null}
 
         {/* Driver mode: show load details inline */}
         {driverMode && resource.data && (
           <div className="mt-2 pl-7 space-y-0.5">
-            {resource.data.loadType && (
+            {resource.data.loadType != null ? (
               <p className="text-[11px] text-gray-500">
                 Load: <span className="font-medium text-gray-700">
                   {String(resource.data.loadQuantity ?? '')} {String(resource.data.loadUnit ?? '')} {String(resource.data.loadType)}
                 </span>
               </p>
-            )}
-            {resource.data.origin && (
+            ) : null}
+            {resource.data.origin != null ? (
               <p className="text-[11px] text-gray-500">
                 {String(resource.data.origin)} → {String(resource.data.destination ?? '—')}
               </p>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -436,25 +436,26 @@ function WorkflowActionModal({
       const inputs: Record<string, unknown> = { ...values };
       inputs['resourceId'] ??= resource.id;
 
+      // apiClient.post<T> returns ApiResponse<T> — T is the inner data payload, not the envelope
+      // API shape: ApiResponse<{ status: string; outputs: {...}; error?: unknown }>
       const res = await apiClient.post<{
-        success: boolean;
-        data: { status: string; outputs: Record<string, unknown>; error?: unknown };
+        status: string;
+        outputs: Record<string, unknown>;
+        error?: unknown;
       }>(
         `/resources/${resource.id}/execute-action?organizationId=${orgId}`,
         { node: action.node, inputs },
       );
 
-      // apiClient returns parsed JSON directly — res IS the body, not an axios wrapper
-      // Response shape: { success: bool, data: { status: string, outputs: {...}, error?: {...} } }
-      if (res.success === false || res.data?.status === 'failure') {
-        const errData = res.data?.error;
+      if (!res.success || res.data?.status === 'failure') {
+        const errData = res.data?.error ?? res.error;
         const msg = typeof errData === 'object' && errData !== null && 'message' in errData
           ? String((errData as { message: string }).message)
-          : JSON.stringify(errData ?? 'Action failed');
+          : String(errData ?? 'Action failed');
         setError(msg);
       } else {
         // Show the outputs to the user before closing
-        setResult((res.data?.outputs as Record<string, unknown>) ?? {});
+        setResult(res.data?.outputs ?? {});
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Action failed');
@@ -1365,7 +1366,7 @@ export default function ResourcesPage() {
         Loading…
       </div>
     }>
-      <ResourcesPageInner />
+        <ResourcesPageInner />
     </Suspense>
   );
 }

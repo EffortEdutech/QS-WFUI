@@ -325,6 +325,20 @@ export class StateEngineService {
     return this.loadMachine(resourceType, orgId);
   }
 
+  /**
+   * Return all valid transitions from a given state for a resource type.
+   * Empty transitions list (custom types) → returns empty array (no enforcement).
+   */
+  async getAvailableTransitions(
+    resourceType: string,
+    fromState:    string,
+    orgId:        string,
+  ): Promise<TransitionDefinition[]> {
+    const machine = await this.loadMachine(resourceType, orgId);
+    if (machine.transitions.length === 0) return [];
+    return machine.transitions.filter((t) => t.from === fromState);
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private async getActorRole(userId: string, orgId: string): Promise<string | null> {

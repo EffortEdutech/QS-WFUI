@@ -6,10 +6,10 @@
 -- ── packs ────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS packs (
-  id            text PRIMARY KEY,                     -- e.g. "qsos.qs-pack"
+  id            text PRIMARY KEY,                     -- e.g. "lados.qs-pack"
   display_name  text NOT NULL,
   description   text,
-  author        text NOT NULL DEFAULT 'QS-OS',
+  author        text NOT NULL DEFAULT 'Lados Platform',
   version       text NOT NULL DEFAULT '1.0.0',
   icon          text,
   color         text,
@@ -66,9 +66,9 @@ CREATE POLICY "Authenticated users can read nodes"
 -- ── Seed: Official Packs ─────────────────────────────────────────────────────
 
 INSERT INTO packs (id, display_name, description, author, version, icon, color, is_official) VALUES
-  ('qsos.core-pack',        'Core',          'Trigger, approval, logger and flow-control nodes', 'QS-OS', '1.0.0', 'cpu',           '#6B7280', true),
-  ('qsos.qs-pack',          'QS',            'Quantity Surveying — BOQ, trade classification, work packages', 'QS-OS', '1.0.0', 'calculator', '#3B82F6', true),
-  ('qsos.procurement-pack', 'Procurement',   'RFQ generation, vendor management, quotation comparison', 'QS-OS', '1.0.0', 'shopping-cart', '#10B981', true),
-  ('qsos.document-pack',    'Document',      'File upload, Excel/PDF reading, document generation', 'QS-OS', '1.0.0', 'file-text',   '#F59E0B', true),
-  ('qsos.ai-pack',          'AI',            'Classifier, summariser, OCR, drawing analysis', 'QS-OS', '1.0.0', 'zap',           '#8B5CF6', true)
+  ('lados.core-pack',        'Core',          'Trigger, approval, logger and flow-control nodes', 'Lados Platform', '1.0.0', 'cpu',           '#6B7280', true),
+  ('lados.qs-pack',          'QS',            'Quantity Surveying — BOQ, trade classification, work packages', 'Lados Platform', '1.0.0', 'calculator', '#3B82F6', true),
+  ('lados.procurement-pack', 'Procurement',   'RFQ generation, vendor management, quotation comparison', 'Lados Platform', '1.0.0', 'shopping-cart', '#10B981', true),
+  ('lados.document-pack',    'Document',      'File upload, Excel/PDF reading, document generation', 'Lados Platform', '1.0.0', 'file-text',   '#F59E0B', true),
+  ('lados.ai-pack',          'AI',            'Classifier, summariser, OCR, drawing analysis', 'Lados Platform', '1.0.0', 'zap',           '#8B5CF6', true)
 ON CONFLICT (id) DO NOTHING;

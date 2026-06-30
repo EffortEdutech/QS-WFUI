@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
+import { resolveIcon, PACK_EMOJI } from '@/lib/icon-map';
 import type { SkillMode } from '@lados/shared-types';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
@@ -74,8 +75,10 @@ function ServiceChip({ service }: { service: string }) {
 // ── Pack section ──────────────────────────────────────────────────────────────
 
 interface PackSectionProps {
+  packId: string;
   packName: string;
   packColor?: string;
+  packIconName?: string;   // raw Lucide name from DB (e.g. "banknote")
   nodes: RegisteredNode[];
   onDragStart: (e: React.DragEvent, node: RegisteredNode) => void;
   onBulkMode?: (nodeTypes: string[], mode: SkillMode) => void;
@@ -88,7 +91,7 @@ const BULK_ACTIONS: { mode: SkillMode; icon: string; title: string }[] = [
   { mode: 'bypassed', icon: '⏭',  title: 'Bypass All'   },
 ];
 
-function PackSection({ packName, packColor, nodes, onDragStart, onBulkMode, defaultOpen = true }: PackSectionProps) {
+function PackSection({ packId, packName, packColor, packIconName, nodes, onDragStart, onBulkMode, defaultOpen = true }: PackSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [hoverHeader, setHoverHeader] = useState(false);
 
@@ -106,10 +109,17 @@ function PackSection({ packName, packColor, nodes, onDragStart, onBulkMode, defa
           onClick={() => setOpen((v) => !v)}
           className="flex flex-1 items-center gap-1.5 min-w-0 group"
         >
-          <span
-            className="h-2 w-2 flex-shrink-0 rounded-full"
-            style={{ backgroundColor: packColor ?? '#6B7280' }}
-          />
+          {/* Pack icon: prefer PACK_EMOJI by ID, then resolve Lucide name, else color dot */}
+          {PACK_EMOJI[packId] ?? resolveIcon(packIconName) ? (
+            <span className="text-xs leading-none flex-shrink-0">
+              {PACK_EMOJI[packId] ?? resolveIcon(packIconName)}
+            </span>
+          ) : (
+            <span
+              className="h-2 w-2 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: packColor ?? '#6B7280' }}
+            />
+          )}
           <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider truncate">
             {packName}
           </span>
@@ -155,8 +165,8 @@ function PackSection({ packName, packColor, nodes, onDragStart, onBulkMode, defa
             >
               {/* Skill name */}
               <div className="flex items-center gap-1.5">
-                {node.icon ? (
-                  <span className="text-xs">{node.icon}</span>
+                {resolveIcon(node.icon) ? (
+                  <span className="text-xs leading-none">{resolveIcon(node.icon)}</span>
                 ) : (
                   <span
                     className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
@@ -242,13 +252,14 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
   const filtered = nodes;
 
   // Group by pack, preserving pack metadata
-  const packMap = new Map<string, { name: string; color?: string; nodes: RegisteredNode[] }>();
+  const packMap = new Map<string, { name: string; color?: string; icon?: string; nodes: RegisteredNode[] }>();
   for (const node of filtered) {
-    const packId   = node.pack_id;
-    const packName = node.packs?.display_name ?? packId;
+    const packId    = node.pack_id;
+    const packName  = node.packs?.display_name ?? packId;
     const packColor = node.packs?.color ?? undefined;
+    const packIcon  = node.packs?.icon ?? undefined;
     if (!packMap.has(packId)) {
-      packMap.set(packId, { name: packName, color: packColor, nodes: [] });
+      packMap.set(packId, { name: packName, color: packColor, icon: packIcon, nodes: [] });
     }
     packMap.get(packId)!.nodes.push(node);
   }
@@ -258,8 +269,11 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
   );
 
   const onDragStart = (event: React.DragEvent, node: RegisteredNode) => {
-    event.dataTransfer.setData('application/qsos-node-type', node.type);
-    event.dataTransfer.setData('application/qsos-node-label', node.name);
+    event.dataTransfer.setData('application/lados-node-type',     node.type);
+    event.dataTransfer.setData('application/lados-node-label',    node.name);
+    event.dataTransfer.setData('application/lados-node-icon',     node.icon     ?? '');
+    event.dataTransfer.setData('application/lados-node-color',    node.color    ?? '');
+    event.dataTransfer.setData('application/lados-node-category', node.category ?? '');
     event.dataTransfer.effectAllowed = 'move';
   };
 
@@ -296,8 +310,10 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
         {!loading && !error && packs.map(([packId, pack]) => (
           <PackSection
             key={packId}
+            packId={packId}
             packName={pack.name}
             packColor={pack.color}
+            packIconName={pack.icon}
             nodes={pack.nodes}
             onDragStart={onDragStart}
             onBulkMode={onBulkMode}

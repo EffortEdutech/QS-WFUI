@@ -20,6 +20,7 @@ import { realSplitWorkPackage } from './nodes/qs-split-work-package';
 export type { BOQItem, BOQDocument }                   from './nodes/qs-read-boq';
 export type { ClassifiedItem, TradeCategory, IAiService } from './nodes/qs-classify-trade';
 export type { WorkPackage }                            from './nodes/qs-split-work-package';
+export { nodeManifests }                               from './manifests';
 
 export const PACK_ID      = 'qs-pack' as const;
 export const PACK_VERSION = '0.2.0' as const;

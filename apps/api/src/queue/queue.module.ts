@@ -14,6 +14,7 @@
 import { Global, Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ExecutionQueueService } from './execution-queue.service';
+import { QueueController }       from './queue.controller'; // Phase 12
 
 // ExecutionWorker lives in ExecutionModule — it needs FileModule, LibraryModule,
 // ResourceModule, StateEngineModule, ApprovalCoreModule, ArtifactModule etc.,
@@ -26,7 +27,8 @@ import { ExecutionQueueService } from './execution-queue.service';
     // EventEmitter for SSE progress (in-process pub/sub — worker → SSE controller)
     EventEmitterModule.forRoot({ wildcard: false, delimiter: '.', global: true }),
   ],
-  providers: [ExecutionQueueService],
-  exports:   [ExecutionQueueService],
+  controllers: [QueueController], // Phase 12 — GET /queue/health + /queue/failed-jobs
+  providers:   [ExecutionQueueService],
+  exports:     [ExecutionQueueService],
 })
 export class QueueModule {}

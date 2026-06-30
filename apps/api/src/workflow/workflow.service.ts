@@ -1,19 +1,26 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
+import { EventBusService } from '../event-bus/event-bus.service';
 import { validateWorkflow, WorkflowBuilder } from '@lados/workflow-json';
-import type { WorkflowId } from '@lados/shared-types';
+import type { WorkflowId, QSWorkflowDefinition, WorkflowTrigger } from '@lados/shared-types';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { SaveDefinitionDto } from './dto/save-definition.dto';
 
 @Injectable()
 export class WorkflowService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly logger = new Logger(WorkflowService.name);
+
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly eventBus: EventBusService,
+  ) {}
 
   /** List all workflows in a project */
   async findAllInProject(projectId: string, userId: string) {
@@ -291,25 +298,117 @@ export class WorkflowService {
       metadata:        { version_id: version.id, version_number: version.version_number },
     });
 
+    // Auto-register event subscriptions defined in the workflow's triggers array.
+    // Idempotent: clear existing subscriptions for this workflow before re-registering.
+    void this.syncTriggerSubscriptions(
+      workflowId,
+      workflow.definition as QSWorkflowDefinition,
+      workflow.project_id as string,
+      userId,
+    );
+
     return { published: true, version_id: version.id, version_number: version.version_number, workflow: data };
   }
 
-  /** Restore the workflow definition to a specific version snapshot */
+  /**
+   * Sync event subscriptions for a workflow based on its trigger definitions.
+   *
+   * Called after publish. Fire-and-forget (wrapped in void by caller).
+   * Deletes all existing subscriptions for this workflow then re-creates them
+   * from the definition.triggers array so publish is always idempotent.
+   *
+   * Trigger types:
+   *   EventTrigger   → subscribes to the given eventType with optional filter
+   *   WebhookTrigger → subscribes to 'webhook.<path>' (fired by WebhookController)
+   */
+  private async syncTriggerSubscriptions(
+    workflowId:  string,
+    definition:  QSWorkflowDefinition,
+    projectId:   string,
+    userId:      string,
+  ): Promise<void> {
+    // Resolve org_id from project
+    const { data: proj } = await this.supabase.admin
+      .from('projects')
+      .select('organization_id')
+      .eq('id', projectId)
+      .maybeSingle();
+
+    if (!proj) {
+      this.logger.warn(`syncTriggerSubscriptions: project ${projectId} not found — skipping`);
+      return;
+    }
+
+    const orgId = proj.organization_id as string;
+
+    // 1. Remove all existing subscriptions for this workflow (idempotent re-publish)
+    const { error: delErr } = await this.supabase.admin
+      .from('lados_event_subscriptions')
+      .delete()
+      .eq('workflow_id', workflowId)
+      .eq('org_id', orgId);
+
+    if (delErr) {
+      this.logger.warn(`syncTriggerSubscriptions: failed to clear old subscriptions: ${delErr.message}`);
+    }
+
+    const triggers: WorkflowTrigger[] = definition.triggers ?? [];
+    if (!triggers.length) return;
+
+    // 2. Register a subscription for each trigger
+    for (const trigger of triggers) {
+      try {
+        if (trigger.type === 'event') {
+          await this.eventBus.subscribe({
+            orgId,
+            eventType:  trigger.eventType,
+            workflowId,
+            filter:     trigger.filter ?? {},
+            createdBy:  userId,
+          });
+          this.logger.log(`Registered event subscription: ${trigger.eventType} → workflow ${workflowId}`);
+        } else if (trigger.type === 'webhook') {
+          // Webhook triggers use the synthetic event type 'webhook.<path>'
+          const eventType = `webhook.${trigger.path}`;
+          await this.eventBus.subscribe({
+            orgId,
+            eventType,
+            workflowId,
+            filter:    {},
+            createdBy: userId,
+          });
+          this.logger.log(`Registered webhook subscription: ${eventType} → workflow ${workflowId}`);
+        } else if (trigger.type === 'schedule') {
+          // Schedule triggers — SchedulerService polls lados_event_subscriptions for 'cron_trigger'
+          // and evaluates filter.cronExpression against the current time every 60s.
+          await this.eventBus.subscribe({
+            orgId,
+            eventType:  'cron_trigger',
+            workflowId,
+            filter:     { cronExpression: (trigger as { cronExpression?: string }).cronExpression ?? '' },
+            createdBy:  userId,
+          });
+          this.logger.log(`Registered schedule subscription: cron_trigger → workflow ${workflowId}`);
+        }
+      } catch (err) {
+        this.logger.warn(`syncTriggerSubscriptions: failed to register trigger: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /** Restore a specific version of a workflow (rolls back live definition) */
   async restoreVersion(workflowId: string, versionId: string, userId: string) {
     const workflow = await this.findOne(workflowId, userId);
     await this.assertProjectAccess(workflow.project_id as string, userId, ['owner', 'admin', 'member']);
 
-    const { data: version, error: vErr } = await this.supabase.admin
+    const { data: version } = await this.supabase.admin
       .from('workflow_versions')
-      .select('definition, version_number')
+      .select('*')
       .eq('id', versionId)
       .eq('workflow_id', workflowId)
       .maybeSingle();
 
-    if (vErr ?? !version) throw new NotFoundException(`Version ${versionId} not found`);
-
-    // Snapshot current state before overwriting (so user can undo the restore)
-    await this.snapshotVersion(workflowId, userId, `Auto-save before restore to v${version.version_number as number}`);
+    if (!version) throw new NotFoundException(`Version ${versionId} not found`);
 
     // Overwrite live definition
     const { data, error } = await this.supabase.admin

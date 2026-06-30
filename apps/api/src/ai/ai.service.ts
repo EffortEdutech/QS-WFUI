@@ -24,6 +24,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService }           from '../common/supabase/supabase.service';
 import { AiContextBuilderService, AiContext } from './ai-context-builder.service';
+import { OutputLedgerService, LedgerRecord } from './output-ledger.service';
 import {
   AI_TOOL_DEFINITIONS,
   AI_TOOL_NAMES,
@@ -143,6 +144,7 @@ export class AiService {
     private readonly config:          ConfigService,
     private readonly supabase:        SupabaseService,
     private readonly contextBuilder:  AiContextBuilderService,
+    private readonly ledger:          OutputLedgerService,   // Phase 2B
   ) {
     this.apiKey = this.config.get<string>('OPENAI_API_KEY') ?? null;
     if (this.apiKey) {
@@ -523,9 +525,9 @@ Rules:
       break;
     }
 
-    // 5. Write ledger row
+    // 5. Write ledger row (via OutputLedgerService — Phase 2B)
     const latencyMs  = Date.now() - startMs;
-    const ledgerId   = await this.writeLedger({
+    const ledgerParams: LedgerRecord = {
       orgId:           req.orgId,
       actorId:         req.actorId,
       sessionId:       req.sessionId,
@@ -537,7 +539,8 @@ Rules:
       tokensUsed:      totalTokens,
       model,
       latencyMs,
-    });
+    };
+    const ledgerId = await this.ledger.record(ledgerParams);
 
     this.logger.debug(`runAssist: ${totalTokens} tokens, ${latencyMs}ms, ledger: ${ledgerId}`);
 
@@ -570,44 +573,28 @@ Rules:
     return lines.join('\n');
   }
 
-  /** Append a row to lados_ai_outputs. Returns the new row ID. */
-  private async writeLedger(params: {
-    orgId:           string;
-    actorId:         string;
-    sessionId:       string;
-    intent:          string;
-    contextSnapshot: Record<string, unknown>;
-    response:        string;
-    toolCalls:       OpenAiToolCall[];
-    resourceRefs:    string[];
-    tokensUsed:      number;
-    model:           string;
-    latencyMs:       number;
-  }): Promise<string> {
-    const { data, error } = await this.supabase.admin
-      .from('lados_ai_outputs')
-      .insert({
-        org_id:           params.orgId,
-        actor_id:         params.actorId || null,
-        session_id:       params.sessionId,
-        intent:           params.intent,
-        context_snapshot: params.contextSnapshot,
-        response:         params.response,
-        tool_calls:       params.toolCalls,
-        resource_refs:    params.resourceRefs,
-        tokens_used:      params.tokensUsed,
-        model:            params.model,
-        latency_ms:       params.latencyMs,
-      })
-      .select('id')
-      .single();
+  // ── Phase 2A — V4 method aliases ─────────────────────────────────────────
+  // Sprint plan uses complete() / callWithTools() naming convention.
+  // Map to existing implementations without duplication.
 
-    if (error) {
-      this.logger.warn(`Ledger write failed: ${error.message}`);
-      return 'ledger-error';
-    }
+  /**
+   * V4 alias for runCompletion().
+   * AiService.complete() — single-turn chat with retries + token tracking.
+   */
+  async complete(
+    systemPrompt: string,
+    userPrompt:   string,
+    options:      CompletionOptions = {},
+  ): Promise<string> {
+    return this.runCompletion(systemPrompt, userPrompt, options);
+  }
 
-    return (data as { id: string }).id;
+  /**
+   * V4 alias for runAssist().
+   * AiService.callWithTools() — multi-turn with tool calling + ledger.
+   */
+  async callWithTools(req: AssistRequest): Promise<AssistResponse> {
+    return this.runAssist(req);
   }
 
   /** Write to audit_log without blocking the caller */

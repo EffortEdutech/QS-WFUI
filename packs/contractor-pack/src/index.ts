@@ -77,6 +77,7 @@ export {
   type PayrollRunEmployee,
   type PayrollRunData,
 } from './types';
+export { nodeManifests } from './manifests';
 
 // ── Pack identity ─────────────────────────────────────────────────────────────
 

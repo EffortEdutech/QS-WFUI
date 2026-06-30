@@ -104,6 +104,13 @@ const PERMISSION_MATRIX: Record<string, OrgRole[]> = {
   'rfq.create':            ['owner', 'admin', 'member'],
   'quotation.view':        ['owner', 'admin', 'member'],
 
+  // Audit log (Phase 11)
+  'audit.view':            ['owner', 'admin'],
+  'audit.export':          ['owner', 'admin'],
+
+  // Job queue ops (Phase 12)
+  'queue.view':            ['owner', 'admin'],
+
   // General membership (any authenticated member of the org)
   'membership':            ['owner', 'admin', 'member', 'driver', 'operator', 'viewer'],
 };

@@ -1,7 +1,7 @@
 {
-  "name": "@lados/pack-sdk",
+  "name": "@lados/pack-sdk-v1",
   "version": "0.1.0",
-  "description": "QS Pack SDK — base classes for building and registering QS-OS packs",
+  "description": "QS Pack SDK V1 - legacy, use @lados/pack-sdk for V2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

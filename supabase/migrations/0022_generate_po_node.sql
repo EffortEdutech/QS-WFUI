@@ -22,7 +22,7 @@ INSERT INTO registered_nodes (
 )
 VALUES (
   'procurement.generate_po',
-  'qsos.procurement-pack',
+  'lados.procurement-pack',
   'Generate PO',
   'Generates a Purchase Order DOCX for an awarded supplier, uploads to Storage, and returns a signed download URL. DRAFT — must be reviewed and signed by an authorized officer before it constitutes a binding commitment.',
   '1.0.0',

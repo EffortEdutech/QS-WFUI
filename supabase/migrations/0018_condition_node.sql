@@ -22,7 +22,7 @@ VALUES (
   'control',
   '◇',
   '#0D9488',
-  'qsos.core-pack',
+  'lados.core-pack',
   '[
     {"id": "value", "label": "Value", "type": "any", "description": "The value to evaluate"}
   ]'::jsonb,

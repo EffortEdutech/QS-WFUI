@@ -7,6 +7,7 @@
  * Phase 2: nodes migrated from apps/api/src/execution/real-nodes/
  * Phase 3: resource.create/read/update/transition/list added
  * Phase 4: event.publish added
+ * Phase 6: core.loop, core.parallel, core.merge added
  * Phase 9 Correction: artifact.write + artifact.read (service-injected, lados_artifacts table)
  *                     project.save_artifact + project.read_artifact kept for legacy compat
  */
@@ -30,6 +31,10 @@ import {
 } from './nodes/resource-nodes';
 import { realEventPublish }  from './nodes/event-nodes';
 import { realStateChange }   from './nodes/state-change-node';
+import { realLoop }          from './nodes/core-loop';
+import { realParallel }      from './nodes/core-parallel';
+import { realMerge }         from './nodes/core-merge';
+import { realDelay }         from './nodes/core-delay';  // Phase 10
 
 export { type INotificationService }  from './nodes/core-human-approval';
 export { type IResourceService, type IResource, type ResourceType } from './nodes/resource-nodes';
@@ -37,6 +42,7 @@ export { type IEventBusService }      from './nodes/event-nodes';
 export { type IStateEngineService }   from './nodes/state-change-node';
 export { type IArtifactWriteService } from './nodes/artifact-write';
 export { type IArtifactReadService }  from './nodes/artifact-read';
+export { nodeManifests }              from './manifests';
 
 export const PACK_ID      = 'core-pack' as const;
 export const PACK_VERSION = '0.6.0' as const;
@@ -51,7 +57,7 @@ export const manifest: PackManifest = {
     'core.logger',
     'core.cron_trigger',
     'core.human_approval',
-    'workflow.condition',
+    'core.condition',
     // Canonical artifact nodes (Phase 9 Correction — lados_artifacts table)
     'artifact.write',
     'artifact.read',
@@ -68,6 +74,12 @@ export const manifest: PackManifest = {
     'event.publish',
     // State Engine
     'state.change',
+    // Phase 6 — Parallel & Loop
+    'core.loop',
+    'core.parallel',
+    'core.merge',
+    // Phase 10 — Delay
+    'core.delay',
   ],
 };
 
@@ -101,7 +113,8 @@ export function resolveNode(
     'core.human_approval':   (ctx) => realHumanApproval(ctx, notificationService),
     'core.logger':           (ctx) => realLogger(ctx),
     'core.cron_trigger':     (ctx) => realCronTrigger(ctx),
-    'workflow.condition':    (ctx) => realCondition(ctx),
+    'core.condition':        (ctx) => realCondition(ctx),
+    'workflow.condition':    (ctx) => realCondition(ctx),  // backward-compat alias
 
     // ── Artifacts — canonical (Phase 9 Correction) ────────────────────────
     'artifact.write':        (ctx) => artifactService
@@ -141,6 +154,14 @@ export function resolveNode(
     'state.change':          (ctx) => stateEngineService
       ? realStateChange(ctx, stateEngineService)
       : Promise.resolve(noService('NO_SERVICE', 'StateEngineService not injected')),
+
+    // ── Phase 6: Parallel & Loop ──────────────────────────────────────────
+    'core.loop':             (ctx) => realLoop(ctx),
+    'core.parallel':         (ctx) => realParallel(ctx),
+    'core.merge':            (ctx) => realMerge(ctx),
+
+    // ── Phase 10: Delay ───────────────────────────────────────────────────
+    'core.delay':            (ctx) => realDelay(ctx),
   };
 
   return (nodeType: string) => nodes[nodeType] ?? null;

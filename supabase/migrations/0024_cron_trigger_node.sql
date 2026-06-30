@@ -19,7 +19,7 @@ INSERT INTO registered_nodes (
 )
 VALUES (
   'core.cron_trigger',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Cron Trigger',
   'Fires a workflow on a recurring cron schedule. When run manually it behaves as an immediate trigger and returns the current timestamp. Connect to a scheduler to automate periodic runs.',
   '1.0.0',

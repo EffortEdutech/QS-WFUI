@@ -231,7 +231,7 @@ export default function ProjectDetailPage() {
               <button
                 onClick={() => { setShowImport(true); setImportError(null); }}
                 className="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                title="Import workflow from .qsos.json file"
+                title="Import workflow from .lados.json file"
               >
                 ↑ Import
               </button>
@@ -453,7 +453,7 @@ export default function ProjectDetailPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Import Workflow</h2>
             <p className="text-xs text-gray-500 mb-5">
-              Select a <span className="font-mono">.qsos.json</span> file exported from QS-WFUI.
+              Select a <span className="font-mono">.lados.json</span> file exported from QS-WFUI.
               A new workflow will be created in this project.
             </p>
 
@@ -470,12 +470,12 @@ export default function ProjectDetailPage() {
             }`}>
               <span className="text-3xl">{importing ? '⏳' : '📂'}</span>
               <span className="text-sm font-medium text-gray-700">
-                {importing ? 'Importing…' : 'Click to select .qsos.json'}
+                {importing ? 'Importing…' : 'Click to select .lados.json'}
               </span>
               <span className="text-xs text-gray-400">or drag and drop</span>
               <input
                 type="file"
-                accept=".json,.qsos.json"
+                accept=".json,.lados.json"
                 className="sr-only"
                 disabled={importing}
                 onChange={handleImportFile}

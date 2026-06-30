@@ -11,6 +11,7 @@
  */
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   OnModuleInit,
@@ -21,6 +22,8 @@ import { LibraryService } from '../library/library.service';
 import { AiService } from '../ai/ai.service';
 import { DocumentService } from '../document/document.service';
 import { NotificationService } from '../notification/notification.service';
+import { EmailService }        from '../notification/email.service';   // Phase 10
+import { SmsService }          from '../notification/sms.service';     // Phase 10
 import { ResourceService } from '../resource/resource.service';
 import { EventBusService } from '../event-bus/event-bus.service';
 import { StateEngineService } from '../state-engine/state-engine.service';
@@ -37,6 +40,7 @@ import type { TriggerRunDto } from './dto/trigger-run.dto';
 
 @Injectable()
 export class ExecutionService implements OnModuleInit {
+  private readonly logger = new Logger(ExecutionService.name);
   private readonly nodeResolver: ReturnType<typeof buildRealNodeResolver>;
 
   constructor(
@@ -54,6 +58,8 @@ export class ExecutionService implements OnModuleInit {
     private readonly artifactService: ArtifactService,
     private readonly executionQueue: ExecutionQueueService,
     private readonly packRegistry: PackRegistryService,
+    private readonly emailService: EmailService,    // Phase 10
+    private readonly smsService: SmsService,        // Phase 10
   ) {
     // nodeResolver used only for in-process fallback (no Redis) and executeNodeAction.
     this.nodeResolver = buildRealNodeResolver(
@@ -67,12 +73,14 @@ export class ExecutionService implements OnModuleInit {
       this.stateEngine,
       this.approvalTaskCreator,
       this.artifactService,
+      this.emailService,
+      this.smsService,
     );
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     // Register the workflow trigger callback on EventBusService.
     // Done here (not in the constructor) to avoid circular dependency issues
     // during NestJS module initialization.
@@ -81,6 +89,56 @@ export class ExecutionService implements OnModuleInit {
         await this._triggerFromEvent(workflowId, orgId, actorId, inputs);
       },
     );
+
+    // Phase 12 — Crash recovery:
+    // Any run left in status='running' from before the API restart is now
+    // orphaned (the worker process is gone). Mark them failed immediately so
+    // the UI doesn't show infinite spinners and operators can resubmit.
+    await this._recoverStaleRuns();
+  }
+
+  /** Phase 12 — mark runs orphaned by a previous crash as failed. */
+  private async _recoverStaleRuns(): Promise<void> {
+    try {
+      const { data: stale, error } = await this.supabase.admin
+        .from('execution_runs')
+        .select('id')
+        .eq('status', 'running');
+
+      if (error) {
+        this.logger.warn(`Crash recovery query failed: ${error.message}`);
+        return;
+      }
+
+      if (!stale || stale.length === 0) return;
+
+      const ids = stale.map((r: { id: string }) => r.id);
+      const { error: updateErr } = await this.supabase.admin
+        .from('execution_runs')
+        .update({
+          status:       'failed',
+          error:        {
+            code:    'CRASH_RECOVERY',
+            message: 'API process restarted while this run was in progress. Resubmit to retry.',
+          },
+          completed_at: new Date().toISOString(),
+        })
+        .in('id', ids);
+
+      if (updateErr) {
+        this.logger.warn(`Crash recovery update failed: ${updateErr.message}`);
+        return;
+      }
+
+      this.logger.warn(
+        `Crash recovery: marked ${ids.length} stale run(s) as failed — ${ids.join(', ')}`,
+      );
+    } catch (err: unknown) {
+      // Never block startup
+      this.logger.warn(
+        `Crash recovery threw unexpectedly: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ── Trigger ────────────────────────────────────────────────────────────────
@@ -470,6 +528,50 @@ export class ExecutionService implements OnModuleInit {
   }
 
   /**
+   * GET /execution/summary?organizationId=
+   * Returns active/recent run counts for org-level dashboard cards.
+   */
+  async getOrgRunSummary(orgId: string, userId: string): Promise<{
+    running:    number;
+    failed24h:  number;
+    completed7d: number;
+  }> {
+    await this.assertMembership(orgId, userId);
+
+    const now   = new Date();
+    const day1  = new Date(now.getTime() - 24  * 60 * 60 * 1000).toISOString();
+    const day7  = new Date(now.getTime() - 7   * 24 * 60 * 60 * 1000).toISOString();
+
+    const [runningRes, failedRes, completedRes] = await Promise.all([
+      this.supabase.admin
+        .from('execution_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('status', 'running'),
+
+      this.supabase.admin
+        .from('execution_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('status', 'failed')
+        .gte('created_at', day1),
+
+      this.supabase.admin
+        .from('execution_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('status', 'completed')
+        .gte('created_at', day7),
+    ]);
+
+    return {
+      running:     runningRes.count ?? 0,
+      failed24h:   failedRes.count  ?? 0,
+      completed7d: completedRes.count ?? 0,
+    };
+  }
+
+  /**
    * Get the most recent completed qs.read_boq output for a project.
    * Scans execution_logs for node_type = 'qs.read_boq' across all workflows
    * in the project.  Sprint 16 (S16-005).
@@ -633,6 +735,11 @@ export class ExecutionService implements OnModuleInit {
     }
 
     const ctx = {
+      // V2 fields
+      nodeId:         `inline-${nodeType}`,
+      nodeType:       nodeType,
+      upstream:       {} as Record<string, Record<string, unknown>>,
+      // Core fields
       executionId:    `inline-${Date.now()}`,
       workflowId:     'inline-action',
       projectId:      'inline-action',
@@ -657,7 +764,7 @@ export class ExecutionService implements OnModuleInit {
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[ExecutionService] executeNodeAction(${nodeType}) threw: ${msg}`);
+      console.error(`[ExecutionService] executeNodeAction() threw: ${msg}`);
       return { status: 'failure', outputs: {}, error: { code: 'NODE_EXCEPTION', message: msg } };
     }
   }

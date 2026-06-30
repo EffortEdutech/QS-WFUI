@@ -17,6 +17,7 @@ export interface QSWorkflowDefinition {
   nodes: WorkflowNodeInstance[];
   connections: WorkflowConnection[];
   variables?: WorkflowVariable[];
+  triggers?: WorkflowTrigger[];
   metadata?: WorkflowMetadata;
 }
 
@@ -88,6 +89,49 @@ export interface WorkflowMetadata {
   /** Arbitrary key-value pairs */
   [key: string]: unknown;
 }
+
+// ─── Triggers ─────────────────────────────────────────────────────────────────
+
+/**
+ * EventTrigger — fires the workflow when a matching event is published to the
+ * EventBus. Supports exact match ('resource.state_changed') or wildcard
+ * ('resource.*'). Optional filter is matched against event.payload.
+ */
+export interface EventTrigger {
+  type: 'event';
+  /** EventBus event type pattern — exact or wildcard e.g. 'resource.*' */
+  eventType: string;
+  /** Optional payload key/value pairs that must match for the trigger to fire */
+  filter?: Record<string, unknown>;
+}
+
+/**
+ * WebhookTrigger — fires the workflow when an authenticated POST hits
+ * POST /webhooks/:orgId/:path.
+ * The path must be URL-safe (alphanumeric, hyphens, slashes).
+ */
+export interface WebhookTrigger {
+  type: 'webhook';
+  /** Relative path identifying this webhook, e.g. 'payments/notify' */
+  path: string;
+}
+
+/**
+ * ScheduleTrigger — fires the workflow on a cron schedule.
+ * The SchedulerService polls every minute and dispatches matching workflows.
+ * Phase 10.
+ */
+export interface ScheduleTrigger {
+  type: 'schedule';
+  /** Standard 5-part cron expression e.g. "0 8 * * 1-5" */
+  cronExpression: string;
+  /** IANA timezone identifier. Default: 'Asia/Kuala_Lumpur' */
+  timezone?: string;
+  /** Human-readable label for the UI */
+  label?: string;
+}
+
+export type WorkflowTrigger = EventTrigger | WebhookTrigger | ScheduleTrigger;
 
 // ─── Lightweight list DTO (no nodes/connections) ──────────────────────────────
 

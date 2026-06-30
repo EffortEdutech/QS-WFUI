@@ -49,6 +49,17 @@ export class ExecutionController {
     return { success: true, data: result };
   }
 
+  /** Org-level run summary for dashboard cards (Phase 11) */
+  @Get('execution/summary')
+  async getOrgRunSummary(
+    @Query('organizationId') orgId: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    if (!orgId) throw new BadRequestException('organizationId is required');
+    const data = await this.executionService.getOrgRunSummary(orgId, req.user.id);
+    return { success: true, data };
+  }
+
   /** List recent runs for a workflow */
   @Get('workflows/:workflowId/runs')
   async listRuns(

@@ -23,6 +23,7 @@ interface RfqArtifact {
   package_value: number;
   currency: string;
   item_count: number;
+  storage_path?: string;
 }
 
 interface NodeLog {
@@ -146,7 +147,7 @@ function NodeLogRow({ log }: { log: NodeLog }) {
 
   const styles = STATUS_STYLES[log.status] ?? STATUS_STYLES['pending'];
   // DB rows arrive snake_case; TS interface is camelCase — read both
-  const raw = log as Record<string, unknown>;
+  const raw = (log as unknown) as Record<string, unknown>;
   const nodeName   = log.nodeName   ?? raw['node_name']   as string ?? '—';
   const nodeType   = log.nodeType   ?? raw['node_type']   as string ?? '';
   const durationMs = log.durationMs ?? raw['duration_ms'] as number | undefined;
@@ -240,8 +241,8 @@ function NodeLogRow({ log }: { log: NodeLog }) {
 function extractArtifacts(logs: NodeLog[]): RfqArtifact[] {
   for (const log of logs) {
     // DB returns snake_case; TS interface uses camelCase — handle both
-    const nodeType = log.nodeType ?? (log as Record<string, unknown>)['node_type'] as string;
-    const outputs  = log.outputs  ?? (log as Record<string, unknown>)['outputs']   as Record<string, unknown>;
+    const nodeType = log.nodeType ?? ((log as unknown) as Record<string, unknown>)['node_type'] as string;
+    const outputs  = log.outputs  ?? ((log as unknown) as Record<string, unknown>)['outputs']   as Record<string, unknown>;
     if (nodeType === 'procurement.generate_rfq' && log.status === 'completed') {
       const docs = outputs?.['documents'];
       if (Array.isArray(docs) && docs.length > 0) {
@@ -323,7 +324,7 @@ function DistributeModal({
           items.push({
             supplier_id:  supplierId,
             trade:        artifact.trade,
-            storage_path: artifact.storage_path,
+            storage_path: artifact.storage_path ?? '',
             run_id:       runId,
           });
         }
@@ -633,7 +634,7 @@ export default function ExecutionLogPanel({ run, logs, loading, onClose }: Props
       {/* Run ID */}
       {run?.runId && (
         <div className="px-4 py-1.5 border-t border-gray-100 flex-shrink-0">
-          <p className="text-[10px] text-gray-300 font-mono">Run ID: {run.runId}</p>
+          <p className="text-[10px] text-gray-300 font-mono">{run.runId}</p>
         </div>
       )}
     </div>

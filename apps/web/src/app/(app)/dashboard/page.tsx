@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
+import { OrgDashboardSummaryCards } from '@/components/execution/OrgDashboardSummaryCards';
 
 interface Organization {
   id: string;
@@ -170,7 +171,7 @@ function ContractorDashboard({ orgId }: { orgId: string }) {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{job.name}</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    {job.data?.poNumber ? `PO: ${job.data.poNumber}` : `Started ${new Date(job.created_at).toLocaleDateString()}`}
+                    {job.data?.poNumber != null ? `PO: ${String(job.data.poNumber)}` : `Started ${new Date(job.created_at).toLocaleDateString()}`}
                   </p>
                 </div>
                 <div className="ml-4 flex-shrink-0 flex items-center gap-2">
@@ -262,6 +263,11 @@ export default function DashboardPage() {
             </p>
           )}
         </div>
+
+        {/* ── Org Summary Cards (owner / admin) — Phase 11 ── */}
+        {!loading && isOwnerAdmin && org && (
+          <OrgDashboardSummaryCards orgId={org.id} />
+        )}
 
         {/* ── Contractor Overview (owner / admin) ── */}
         {!loading && isOwnerAdmin && org && (
@@ -367,6 +373,6 @@ export default function DashboardPage() {
 
       </div>
 
-    </div>
+      </div>
   );
 }

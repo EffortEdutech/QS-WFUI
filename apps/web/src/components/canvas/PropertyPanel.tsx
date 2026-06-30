@@ -7,22 +7,20 @@
  * Sprint 5  (S5-007): initial — config form from node config_schema.
  * Sprint 13 (S13-004): V3 enrichment — pack name, description, input/output
  *                       port list, uses_services chips, data_pack_deps chips.
+ * Phase 13  (P13-004): Manifest-driven rendering — replaced hardcoded
+ *                       type-switch with ManifestFieldRouter + ManifestSection.
+ *                       Supports ui:widget hints, sections, and all UiWidget types.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api/client';
 import type { Node } from 'reactflow';
 
-interface ConfigField {
-  key: string;
-  label: string;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'textarea' | 'file' | 'json' | 'secret' | 'library-picker';
-  required?: boolean;
-  defaultValue?: unknown;
-  description?: string;
-  placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
-}
+import ManifestFieldRouter from './ManifestFieldRouter';
+import ManifestSection from './ManifestSection';
+import type { ConfigField } from './fields';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface NodePort {
   id: string;
@@ -30,6 +28,24 @@ interface NodePort {
   type: string;
   description?: string;
   required?: boolean;
+}
+
+interface ResourceRequirement {
+  resourceType:  string;
+  description?:  string;
+  access?:       string;
+}
+
+interface UiSection {
+  title: string;
+  fieldKeys: string[];
+}
+
+interface NodeUISchema {
+  title?: string;
+  icon?: string;
+  color?: string;
+  sections?: UiSection[];
 }
 
 interface NodeDefinition {
@@ -45,6 +61,9 @@ interface NodeDefinition {
   uses_services?: string[];
   data_pack_deps?: string[];
   packs?: { display_name: string; color?: string };
+  resource_requirements?: ResourceRequirement[];
+  /** V2 manifest ui_schema — may be present when API serialises uiSchema as ui_schema */
+  ui_schema?: NodeUISchema;
 }
 
 // ── Service chip helpers ──────────────────────────────────────────────────────
@@ -85,133 +104,97 @@ function DataPackChip({ slug }: { slug: string }) {
   );
 }
 
-// ── File Upload inline component ─────────────────────────────────────────────
+// ── Config field rendering helpers ────────────────────────────────────────────
 
-function FileUploadField({
-  value,
+/**
+ * Renders config fields using ManifestSection when ui_schema.sections are
+ * declared, otherwise renders flat using ManifestFieldRouter.
+ */
+function ConfigFields({
+  nodeDef,
+  config,
   onChange,
   organizationId,
   projectId,
 }: {
-  value: string;
-  onChange: (fileId: string) => void;
+  nodeDef: NodeDefinition;
+  config: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
   organizationId?: string;
   projectId?: string;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fields = nodeDef.config_schema;
+  const sections = nodeDef.ui_schema?.sections ?? [];
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!organizationId) { setError('No organization context'); return; }
-    setUploading(true);
-    setError(null);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const params = new URLSearchParams({ organizationId });
-      if (projectId) params.set('projectId', projectId);
-      const json = await apiClient.postForm<{ fileId: string }>(`/uploads?${params}`, formData);
-      if (!json.success || !json.data) { setError(json.error?.message ?? 'Upload failed'); return; }
-      setFileName(file.name);
-      onChange(json.data.fileId);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  }, [organizationId, projectId, onChange]);
+  if (fields.length === 0) {
+    return (
+      <p className="text-xs text-gray-400 text-center py-4">
+        This skill has no configuration.
+      </p>
+    );
+  }
 
+  // ── Sectioned rendering ─────────────────────────────────────────────────
+  if (sections.length > 0) {
+    // Build a Set of field keys that are assigned to any section
+    const assignedKeys = new Set(sections.flatMap((s) => s.fieldKeys));
+    const unsectionedFields = fields.filter((f) => !assignedKeys.has(f.key));
+
+    return (
+      <div className="space-y-2">
+        {sections.map((section, i) => {
+          const sectionFields = section.fieldKeys
+            .map((k) => fields.find((f) => f.key === k))
+            .filter((f): f is ConfigField => f !== undefined);
+
+          return (
+            <ManifestSection
+              key={section.title}
+              title={section.title}
+              fields={sectionFields}
+              config={config}
+              onChange={onChange}
+              organizationId={organizationId}
+              projectId={projectId}
+              defaultOpen={i === 0}
+            />
+          );
+        })}
+
+        {/* Fields not assigned to any section */}
+        {unsectionedFields.length > 0 && (
+          <ManifestSection
+            title="Other"
+            fields={unsectionedFields}
+            config={config}
+            onChange={onChange}
+            organizationId={organizationId}
+            projectId={projectId}
+            defaultOpen
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Flat rendering (no sections) ────────────────────────────────────────
   return (
-    <div className="space-y-1">
-      <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} />
-      {value && fileName ? (
-        <div className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1">
-          <span>✓</span>
-          <span className="truncate flex-1">{fileName}</span>
-          <button onClick={() => { onChange(''); setFileName(null); if (inputRef.current) inputRef.current.value = ''; }}
-            className="text-green-400 hover:text-green-600">✕</button>
-        </div>
-      ) : (
-        <button onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="w-full py-1.5 px-2 rounded border border-dashed border-gray-300 text-xs text-gray-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 transition-colors">
-          {uploading ? 'Uploading…' : '⬆ Choose file to upload'}
-        </button>
-      )}
-      {error && <p className="text-[10px] text-red-500">{error}</p>}
-      {value && !fileName && (
-        <p className="text-[10px] text-gray-400 font-mono truncate">id: {value}</p>
-      )}
+    <div className="space-y-4">
+      {fields.map((field) => (
+        <ManifestFieldRouter
+          key={field.key}
+          field={field}
+          value={config[field.key]}
+          onChange={onChange}
+          organizationId={organizationId}
+          projectId={projectId}
+        />
+      ))}
     </div>
   );
 }
 
-// ── Library Picker inline component ──────────────────────────────────────────
-
-interface LibraryEntry {
-  id: string;
-  label: string;
-  category: string;
-  original_name: string;
-}
-
-function LibraryPickerField({
-  value,
-  onChange,
-  organizationId,
-  projectId,
-}: {
-  value: string;
-  onChange: (id: string) => void;
-  organizationId?: string;
-  projectId?: string;
-}) {
-  const [files, setFiles] = useState<LibraryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!organizationId) return;
-    setLoading(true);
-    const params = new URLSearchParams({ organizationId });
-    if (projectId) params.set('projectId', projectId);
-    apiClient
-      .get<LibraryEntry[]>(`/library?${params}`)
-      .then((res) => setFiles(res.data ?? []))
-      .finally(() => setLoading(false));
-  }, [organizationId, projectId]);
-
-  const selected = files.find((f) => f.id === value);
-
-  return (
-    <div className="space-y-1">
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={loading}
-        className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none bg-white disabled:opacity-50"
-      >
-        <option value="">{loading ? 'Loading library…' : '— Pick from library —'}</option>
-        {files.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.label} ({f.category})
-          </option>
-        ))}
-      </select>
-      {selected && (
-        <p className="text-[10px] text-gray-400 truncate">{selected.original_name}</p>
-      )}
-      {files.length === 0 && !loading && (
-        <p className="text-[10px] text-amber-500">
-          No library files yet — use the Documents tab to upload
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
+// ── PropertyPanel ─────────────────────────────────────────────────────────────
 
 interface PropertyPanelProps {
   selectedNode: Node | null;
@@ -231,7 +214,7 @@ export default function PropertyPanel({
   projectId,
 }: PropertyPanelProps) {
   const [nodeDef, setNodeDef] = useState<NodeDefinition | null>(null);
-  const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [config,  setConfig]  = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [labelValue, setLabelValue] = useState('');
 
@@ -253,13 +236,13 @@ export default function PropertyPanel({
       .get<NodeDefinition>(`/nodes/${encodeURIComponent(nodeType)}`)
       .then((res) => {
         setNodeDef(res.data ?? null);
-        // Seed config with existing data from node, falling back to defaults
+        // Seed config from existing node data, filling gaps with field defaults
         const existing = (selectedNode.data?.config ?? {}) as Record<string, unknown>;
-        const defaults: Record<string, unknown> = {};
+        const seeded: Record<string, unknown> = {};
         for (const field of res.data?.config_schema ?? []) {
-          defaults[field.key] = existing[field.key] ?? field.defaultValue ?? '';
+          seeded[field.key] = existing[field.key] ?? field.defaultValue ?? '';
         }
-        setConfig(defaults);
+        setConfig(seeded);
       })
       .catch(() => setNodeDef(null))
       .finally(() => setLoading(false));
@@ -268,11 +251,10 @@ export default function PropertyPanel({
   const handleChange = (key: string, value: unknown) => {
     const next = { ...config, [key]: value };
     setConfig(next);
-    if (selectedNode) {
-      onConfigChange(selectedNode.id, next);
-    }
+    if (selectedNode) onConfigChange(selectedNode.id, next);
   };
 
+  // ── Empty state ───────────────────────────────────────────────────────────
   if (!selectedNode) {
     return (
       <aside className="w-64 flex-shrink-0 border-l border-gray-200 bg-white p-4">
@@ -283,12 +265,15 @@ export default function PropertyPanel({
     );
   }
 
+  const accentColor = nodeDef?.color ?? nodeDef?.packs?.color ?? '#6B7280';
+
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col overflow-hidden border-l border-gray-200 bg-white">
-      {/* ── Header: Skill Inspector ────────────────────────────────────── */}
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
         className="flex-shrink-0 p-3 border-b border-gray-100"
-        style={{ borderTop: `3px solid ${nodeDef?.color ?? nodeDef?.packs?.color ?? '#6B7280'}` }}
+        style={{ borderTop: `3px solid ${accentColor}` }}
       >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
           Skill Inspector
@@ -312,208 +297,138 @@ export default function PropertyPanel({
         )}
       </div>
 
-      {/* ── Scrollable body ────────────────────────────────────────────── */}
+      {/* ── Scrollable body ──────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
 
-      {/* Input / Output ports */}
-      {!loading && nodeDef && (
-        (nodeDef.inputs?.length || nodeDef.outputs?.length) ? (
+        {/* Input / Output ports */}
+        {!loading && nodeDef && (
+          (nodeDef.inputs?.length || nodeDef.outputs?.length) ? (
+            <div className="px-3 py-2 border-b border-gray-100">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                    Inputs
+                  </p>
+                  {(nodeDef.inputs ?? []).length === 0 ? (
+                    <p className="text-[10px] text-gray-300 italic">none</p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {(nodeDef.inputs ?? []).map((port) => (
+                        <li key={port.id ?? port.label} className="text-[10px] text-gray-600">
+                          <span className="font-medium text-gray-700">{port.label ?? port.id}</span>
+                          <span className="text-gray-400 ml-0.5 font-mono text-[9px]">{port.type}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                    Outputs
+                  </p>
+                  {(nodeDef.outputs ?? []).length === 0 ? (
+                    <p className="text-[10px] text-gray-300 italic">none</p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {(nodeDef.outputs ?? []).map((port) => (
+                        <li key={port.id ?? port.label} className="text-[10px] text-gray-600">
+                          <span className="font-medium text-gray-700">{port.label ?? port.id}</span>
+                          <span className="text-gray-400 ml-0.5 font-mono text-[9px]">{port.type}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null
+        )}
+
+        {/* Services + Data Pack dependencies */}
+        {!loading && nodeDef && (
+          (nodeDef.uses_services?.length || nodeDef.data_pack_deps?.length) ? (
+            <div className="px-3 py-2 border-b border-gray-100 space-y-1.5">
+              {nodeDef.uses_services && nodeDef.uses_services.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                    Uses Services
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {nodeDef.uses_services.map((svc) => <ServiceChip key={svc} svc={svc} />)}
+                  </div>
+                </div>
+              )}
+              {nodeDef.data_pack_deps && nodeDef.data_pack_deps.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                    Requires Data Packs
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {nodeDef.data_pack_deps.map((slug) => <DataPackChip key={slug} slug={slug} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null
+        )}
+
+        {/* Resource requirements */}
+        {!loading && nodeDef && (nodeDef.resource_requirements?.length ?? 0) > 0 && (
           <div className="px-3 py-2 border-b border-gray-100">
-            <div className="grid grid-cols-2 gap-2">
-              {/* Inputs */}
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
-                  Inputs
-                </p>
-                {(nodeDef.inputs ?? []).length === 0 ? (
-                  <p className="text-[10px] text-gray-300 italic">none</p>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {(nodeDef.inputs ?? []).map((port) => (
-                      <li key={port.id ?? port.label} className="text-[10px] text-gray-600">
-                        <span className="font-medium text-gray-700">{port.label ?? port.id}</span>
-                        <span className="text-gray-400 ml-0.5 font-mono text-[9px]">{port.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              {/* Outputs */}
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
-                  Outputs
-                </p>
-                {(nodeDef.outputs ?? []).length === 0 ? (
-                  <p className="text-[10px] text-gray-300 italic">none</p>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {(nodeDef.outputs ?? []).map((port) => (
-                      <li key={port.id ?? port.label} className="text-[10px] text-gray-600">
-                        <span className="font-medium text-gray-700">{port.label ?? port.id}</span>
-                        <span className="text-gray-400 ml-0.5 font-mono text-[9px]">{port.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+              Resource Access
+            </p>
+            <ul className="space-y-1">
+              {(nodeDef.resource_requirements ?? []).map((req) => (
+                <li key={req.resourceType} className="flex items-start gap-1.5 text-[10px] text-gray-600">
+                  <span className="text-amber-500 flex-shrink-0 mt-0.5">⚑</span>
+                  <span>
+                    <span className="font-medium text-gray-700">{req.resourceType}</span>
+                    {req.access && (
+                      <span className="ml-1 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500 font-mono">
+                        {req.access}
+                      </span>
+                    )}
+                    {req.description && (
+                      <span className="block text-gray-400 text-[9px]">{req.description}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-        ) : null
-      )}
-
-      {/* Services + Data Pack dependencies */}
-      {!loading && nodeDef && (
-        (nodeDef.uses_services?.length || nodeDef.data_pack_deps?.length) ? (
-          <div className="px-3 py-2 border-b border-gray-100 space-y-1.5">
-            {nodeDef.uses_services && nodeDef.uses_services.length > 0 && (
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
-                  Uses Services
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {nodeDef.uses_services.map((svc) => (
-                    <ServiceChip key={svc} svc={svc} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {nodeDef.data_pack_deps && nodeDef.data_pack_deps.length > 0 && (
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
-                  Requires Data Packs
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {nodeDef.data_pack_deps.map((slug) => (
-                    <DataPackChip key={slug} slug={slug} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : null
-      )}
-
-      {/* ── Config fields ───────────────────────────────────────────────── */}
-      <div className="p-3 space-y-4">
-        {loading && (
-          <p className="text-xs text-gray-400 text-center py-4">Loading…</p>
         )}
 
-        {!loading && !nodeDef && (
-          <p className="text-xs text-gray-400 text-center py-4 italic">
-            Could not load skill definition.
-            <br />
-            <span className="text-[10px] font-mono">{selectedNode.data?.nodeType as string}</span>
-          </p>
-        )}
+        {/* ── Config fields — manifest-driven ─────────────────────────────── */}
+        <div className="p-3">
+          {loading && (
+            <p className="text-xs text-gray-400 text-center py-4">Loading…</p>
+          )}
 
-        {!loading && nodeDef && nodeDef.config_schema.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">
-            This skill has no configuration.
-          </p>
-        )}
+          {!loading && !nodeDef && (
+            <p className="text-xs text-gray-400 text-center py-4 italic">
+              Could not load skill definition.
+              <br />
+              <span className="text-[10px] font-mono">
+                {selectedNode.data?.nodeType as string}
+              </span>
+            </p>
+          )}
 
-        {!loading &&
-          nodeDef?.config_schema.map((field) => (
-            <div key={field.key}>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {field.label}
-                {field.required && <span className="text-red-500 ml-0.5">*</span>}
-              </label>
+          {!loading && nodeDef && (
+            <ConfigFields
+              nodeDef={nodeDef}
+              config={config}
+              onChange={handleChange}
+              organizationId={organizationId}
+              projectId={projectId}
+            />
+          )}
+        </div>
 
-              {field.description && (
-                <p className="text-[11px] text-gray-400 mb-1">{field.description}</p>
-              )}
+      </div>{/* end scrollable body */}
 
-              {/* Text / secret */}
-              {(field.type === 'string' || field.type === 'secret') && (
-                <input
-                  type={field.type === 'secret' ? 'password' : 'text'}
-                  value={(config[field.key] as string) ?? ''}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none"
-                />
-              )}
-
-              {/* File upload — calls POST /uploads and stores the returned file_id */}
-              {field.type === 'file' && (
-                <FileUploadField
-                  value={(config[field.key] as string) ?? ''}
-                  onChange={(fileId) => handleChange(field.key, fileId)}
-                  organizationId={organizationId}
-                  projectId={projectId}
-                />
-              )}
-
-              {/* Number */}
-              {field.type === 'number' && (
-                <input
-                  type="number"
-                  value={(config[field.key] as number) ?? ''}
-                  onChange={(e) => handleChange(field.key, Number(e.target.value))}
-                  placeholder={field.placeholder}
-                  className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none"
-                />
-              )}
-
-              {/* Boolean */}
-              {field.type === 'boolean' && (
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(config[field.key])}
-                    onChange={(e) => handleChange(field.key, e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600"
-                  />
-                  <span className="text-xs text-gray-600">Enabled</span>
-                </label>
-              )}
-
-              {/* Select */}
-              {field.type === 'select' && (
-                <select
-                  value={(config[field.key] as string) ?? ''}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none bg-white"
-                >
-                  <option value="">— Select —</option>
-                  {field.options?.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {/* Textarea / JSON */}
-              {(field.type === 'textarea' || field.type === 'json') && (
-                <textarea
-                  value={(config[field.key] as string) ?? ''}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  rows={field.type === 'json' ? 4 : 3}
-                  className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none font-mono resize-none"
-                />
-              )}
-
-              {/* Library picker — ComfyUI-style file selector from project library */}
-              {field.type === 'library-picker' && (
-                <LibraryPickerField
-                  value={(config[field.key] as string) ?? ''}
-                  onChange={(id) => handleChange(field.key, id)}
-                  organizationId={organizationId}
-                  projectId={projectId}
-                />
-              )}
-            </div>
-          ))}
-      </div>  {/* end config fields div */}
-
-      </div>  {/* end scrollable body div */}
-
-      {/* Footer — skill type + delete */}
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 p-3 border-t border-gray-100 flex items-center gap-2">
         <p className="text-[10px] font-mono text-gray-400 truncate flex-1">
           {selectedNode.data?.nodeType ?? '—'}
@@ -528,6 +443,7 @@ export default function PropertyPanel({
           </button>
         )}
       </div>
+
     </aside>
   );
 }

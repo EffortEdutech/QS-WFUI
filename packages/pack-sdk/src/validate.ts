@@ -17,7 +17,7 @@ export function validatePackManifest(manifest: unknown): PackValidationResult {
   if (!m['id'] || typeof m['id'] !== 'string') {
     issues.push({ field: 'id', message: 'Pack id is required and must be a string' });
   } else if (!/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/.test(m['id'] as string)) {
-    issues.push({ field: 'id', message: 'Pack id must follow dotted-path format e.g. "qsos.qs-pack"' });
+    issues.push({ field: 'id', message: 'Pack id must follow dotted-path format e.g. "lados.qs-pack"' });
   }
 
   if (!m['version'] || typeof m['version'] !== 'string') {

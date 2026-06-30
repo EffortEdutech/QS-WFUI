@@ -153,7 +153,7 @@ INSERT INTO public.registered_nodes
 VALUES
 (
   'project.save_artifact',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Save Artifact',
   'Save workflow outputs to the project artifact store so downstream workflows can read them.',
   '1.0.0',
@@ -168,7 +168,7 @@ VALUES
 ),
 (
   'project.read_artifact',
-  'qsos.core-pack',
+  'lados.core-pack',
   'Read Artifact',
   'Read a saved artifact from the project store into this workflow as inputs.',
   '1.0.0',

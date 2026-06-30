@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import NodePalette from '@/components/canvas/NodePalette';
-import type { BulkModeRequest } from '@/components/canvas/WorkflowCanvas';
+import type { BulkModeRequest, DraftRequest } from '@/components/canvas/WorkflowCanvas';
 import type { SkillMode } from '@lados/shared-types';
+import DesignStudio from '@/components/canvas/DesignStudio';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
 import VersionHistoryDrawer from '@/components/canvas/VersionHistoryDrawer';
 import RunHistoryPanel from '@/components/canvas/RunHistoryPanel';
@@ -13,8 +14,7 @@ import FileUploadPanel from '@/components/canvas/FileUploadPanel';
 import LibraryPanel from '@/components/canvas/LibraryPanel';
 import DataPackBrowser from '@/components/canvas/DataPackBrowser';
 import { apiClient } from '@/lib/api/client';
-import { createClient } from '@/lib/supabase/client';
-import type { QSWorkflowDefinition, WorkflowConnection, WorkflowNodeId } from '@lados/shared-types';
+import type { QSWorkflowDefinition, WorkflowConnection, NodeInstanceId } from '@lados/shared-types';
 
 // ── Normalize definition from DB ───────────────────────────────────────────────
 // Templates stored via SQL seed may use React Flow's "edges" key instead of
@@ -30,9 +30,9 @@ function normalizeDefinition(raw: unknown): QSWorkflowDefinition {
     ? def.connections
     : (def.edges ?? []).map((e) => ({
         id: e.id,
-        sourceNodeId: e.source as WorkflowNodeId,
+        sourceNodeId: e.source as NodeInstanceId,
         sourcePortId: e.sourceHandle ?? 'out',
-        targetNodeId: e.target as WorkflowNodeId,
+        targetNodeId: e.target as NodeInstanceId,
         targetPortId: e.targetHandle ?? 'in',
       })) as WorkflowConnection[];
 
@@ -43,7 +43,7 @@ function normalizeDefinition(raw: unknown): QSWorkflowDefinition {
     // Ensure workflow metadata stub exists (validator no longer requires it,
     // but the canvas spreads it in auto-save so it must not be undefined)
     workflow: def.workflow ?? {
-      id: '' as WorkflowNodeId,
+      id: '' as NodeInstanceId,
       name: '',
       version: '1.0.0',
       status: 'draft' as const,
@@ -140,6 +140,14 @@ export default function WorkflowEditorPage({ params }: PageProps) {
 
   // ── Bulk mode request (S14-007) ───────────────────────────────────────────
   const [bulkModeRequest, setBulkModeRequest] = useState<BulkModeRequest | null>(null);
+
+  // ── Phase 4B: AI Design Studio ────────────────────────────────────────────
+  const [showDesignStudio, setShowDesignStudio] = useState(false);
+  const [draftRequest, setDraftRequest]         = useState<DraftRequest | null>(null);
+
+  const handleApplyDraft = useCallback((draft: QSWorkflowDefinition) => {
+    setDraftRequest({ definition: draft, stamp: Date.now() });
+  }, []);
 
   const handleBulkMode = useCallback((nodeTypes: string[], mode: SkillMode) => {
     setBulkModeRequest({ nodeTypes, mode, stamp: Date.now() });
@@ -288,6 +296,28 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     }
   }
 
+  // ── Publish workflow ───────────────────────────────────────────────────────
+
+  const [publishing, setPublishing] = useState(false);
+  const [publishState, setPublishState] = useState<'idle' | 'ok' | 'error'>('idle');
+
+  const handlePublish = useCallback(async () => {
+    setPublishing(true);
+    setPublishState('idle');
+    try {
+      const res = await apiClient.post<{ version: number }>(
+        `/projects/${projectId}/workflows/${workflowId}/publish`,
+        {},
+      );
+      setPublishState(res.success ? 'ok' : 'error');
+    } catch {
+      setPublishState('error');
+    } finally {
+      setPublishing(false);
+      setTimeout(() => setPublishState('idle'), 3000);
+    }
+  }, [projectId, workflowId]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const saveLabel: Record<SaveState, string> = {
@@ -353,6 +383,15 @@ export default function WorkflowEditorPage({ params }: PageProps) {
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Phase 4B: AI Design Studio button */}
+          <button
+            onClick={() => setShowDesignStudio(true)}
+            className="text-xs font-medium text-purple-600 hover:text-purple-800 px-2 py-1.5 rounded hover:bg-purple-50 transition-colors border border-purple-200 hover:border-purple-300"
+            title="AI Design Studio — generate a workflow from a description"
+          >
+            ✨ AI Design
+          </button>
+
           {/* Version history button — S18-002 */}
           <button
             onClick={() => setShowVersions(true)}
@@ -373,7 +412,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
               const url  = URL.createObjectURL(blob);
               const a    = document.createElement('a');
               a.href     = url;
-              a.download = `${workflowName.replace(/\s+/g, '_')}.qsos.json`;
+              a.download = `${workflowName.replace(/\s+/g, '_')}.lados.json`;
               a.click();
               URL.revokeObjectURL(url);
             }}
@@ -381,6 +420,24 @@ export default function WorkflowEditorPage({ params }: PageProps) {
             title="Export workflow JSON"
           >
             ↓ Export
+          </button>
+
+          {/* Publish button */}
+          <button
+            onClick={() => void handlePublish()}
+            disabled={publishing || hasValidationErrors}
+            title={hasValidationErrors ? 'Fix connection errors before publishing' : 'Publish workflow — register event triggers'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+              publishState === 'ok'
+                ? 'bg-green-50 text-green-700 border-green-300'
+                : publishState === 'error'
+                  ? 'bg-red-50 text-red-600 border-red-300'
+                  : publishing || hasValidationErrors
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {publishing ? '⏳ Publishing…' : publishState === 'ok' ? '✓ Published' : publishState === 'error' ? '⚠ Failed' : '🚀 Publish'}
           </button>
 
           {/* Run button */}
@@ -468,6 +525,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
               organizationId={organizationId}
               projectId={projectId}
               bulkModeRequest={bulkModeRequest}
+              draftRequest={draftRequest}
               onValidationChange={setHasValidationErrors}
             />
           </div>
@@ -519,6 +577,18 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           )}
         </main>
       </div>
+
+      {/* Phase 4B: AI Design Studio drawer */}
+      {definition && (
+        <DesignStudio
+          projectId={projectId}
+          organizationId={organizationId}
+          baseDefinition={definition}
+          isOpen={showDesignStudio}
+          onClose={() => setShowDesignStudio(false)}
+          onApply={handleApplyDraft}
+        />
+      )}
 
       {/* Version history drawer — S18-002 */}
       {showVersions && (

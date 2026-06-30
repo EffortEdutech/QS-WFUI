@@ -82,7 +82,7 @@ export default function QuotationPage() {
   const [suppliers, setSuppliers]     = useState<Supplier[]>([]);
   const [saving, setSaving]           = useState(false);
   const [addError, setAddError]       = useState<string | null>(null);
-  const [orgId, setOrgId]             = useState<string | null>(null);
+  const [_orgId, setOrgId]             = useState<string | null>(null);
 
   // Load
   function load() {

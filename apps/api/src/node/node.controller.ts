@@ -15,7 +15,7 @@ import { NodeService } from './node.service';
 export class NodeController {
   constructor(private readonly nodeService: NodeService) {}
 
-  /** GET /api/v1/nodes — list all nodes, optionally ?category=qs or ?pack=qsos.qs-pack */
+  /** GET /api/v1/nodes — list all nodes, optionally ?category=qs or ?pack=lados.qs-pack */
   @Get()
   async findAll(
     @Query('category') category?: string,

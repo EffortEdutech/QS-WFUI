@@ -42,6 +42,7 @@ export {
   type FoundationEventType,
   type NotificationType,
 } from './types';
+export { nodeManifests } from './manifests';
 
 // ── Pack identity ─────────────────────────────────────────────────────────────
 

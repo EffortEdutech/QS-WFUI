@@ -189,7 +189,7 @@ export default function VersionHistoryDrawer({
               <div className="text-4xl mb-3">🕐</div>
               <p className="text-xs font-medium text-gray-600 mb-1">No versions yet</p>
               <p className="text-[10px] text-gray-400">
-                Click "Save Current Version" to create your first snapshot.
+                Click &ldquo;Save Current Version&rdquo; to create your first snapshot.
               </p>
             </div>
           )}
@@ -251,6 +251,6 @@ export default function VersionHistoryDrawer({
           </p>
         </div>
       </div>
-    </>
+       </>
   );
 }

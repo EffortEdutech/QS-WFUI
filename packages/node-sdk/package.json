@@ -1,7 +1,7 @@
 {
-  "name": "@lados/node-sdk",
+  "name": "@lados/node-sdk-v1",
   "version": "0.1.0",
-  "description": "QS Node SDK — base classes and interfaces for building QS-OS nodes",
+  "description": "QS Node SDK V1 - DEPRECATED, superseded by packages/@lados/node-sdk",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

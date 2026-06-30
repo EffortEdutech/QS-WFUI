@@ -31,7 +31,7 @@ async function request<T>(
     });
   } catch {
     // Network error (API server unreachable, CORS preflight failure, etc.)
-    return { data: undefined, error: 'API server unreachable' } as ApiResponse<T>;
+    return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: 'API server unreachable' } } as ApiResponse<T>;
   }
 
   return res.json() as Promise<ApiResponse<T>>;

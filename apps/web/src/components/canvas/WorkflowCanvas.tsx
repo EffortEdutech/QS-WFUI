@@ -38,15 +38,33 @@ import { apiClient } from '@/lib/api/client';
 import PropertyPanel from './PropertyPanel';
 import { ConditionNode } from './ConditionNode';
 
-// ── Custom SkillNode ──────────────────────────────────────────────────────────
+// ── Custom SkillNode (V2) ─────────────────────────────────────────────────────
 //
 // Three visual states driven by data.mode:
 //   active   — white card, solid border (default)
 //   muted    — gray/dim, 🔇 badge, outputs null at runtime
 //   bypassed — dashed amber border, ⏭ badge, passes input[0] through at runtime
+//
+// V2 additions (Phase 4A):
+//   data.icon     — emoji or SVG string; shown left of title
+//   data.color    — hex or named color; used as left-border accent
+//   data.category — text badge below title (e.g. "document", "ai", "qs")
+
+const CATEGORY_COLORS: Record<string, string> = {
+  ai:          'bg-purple-100 text-purple-700',
+  document:    'bg-blue-100   text-blue-700',
+  qs:          'bg-green-100  text-green-700',
+  procurement: 'bg-amber-100  text-amber-700',
+  storage:     'bg-cyan-100   text-cyan-700',
+  auth:        'bg-red-100    text-red-700',
+  audit:       'bg-gray-100   text-gray-700',
+};
 
 function SkillNode({ data, selected }: NodeProps) {
   const mode: SkillMode = (data.mode as SkillMode) ?? 'active';
+  const icon      = data.icon     as string | undefined;
+  const color     = data.color    as string | undefined;
+  const category  = data.category as string | undefined;
   const selectedRing = selected ? 'ring-2 ring-offset-1 ' : '';
 
   const containerCls =
@@ -56,15 +74,27 @@ function SkillNode({ data, selected }: NodeProps) {
         ? `bg-white border-2 border-dashed border-amber-400 ${selectedRing}${selected ? 'ring-amber-300' : ''}`
         : `bg-white border border-gray-300 ${selectedRing}${selected ? 'ring-blue-400' : ''}`;
 
+  // V2: left color accent bar
+  const accentStyle = color && mode === 'active'
+    ? { borderLeft: `3px solid ${color}` }
+    : {};
+
+  // Category badge colors
+  const catKey = category?.split('.')[0] ?? '';
+  const catCls = CATEGORY_COLORS[catKey] ?? 'bg-gray-100 text-gray-500';
+
   return (
     <div
-      className={`relative rounded px-3 py-2 text-xs font-medium min-w-[120px] text-center shadow-sm transition-all ${containerCls}`}
+      className={`relative rounded px-3 py-2 text-xs font-medium min-w-[130px] shadow-sm transition-all ${containerCls}`}
+      style={accentStyle}
     >
       <Handle
         type="target"
         position={Position.Top}
         style={{ background: '#9ca3af', width: 8, height: 8 }}
       />
+
+      {/* Mode badge */}
       {mode !== 'active' && (
         <span
           className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider whitespace-nowrap ${
@@ -74,9 +104,22 @@ function SkillNode({ data, selected }: NodeProps) {
           {mode === 'muted' ? '🔇 muted' : '⏭ bypass'}
         </span>
       )}
-      <span className={mode === 'muted' ? 'text-gray-400' : 'text-gray-800'}>
-        {data.label as string}
-      </span>
+
+      {/* Title row: icon + label */}
+      <div className="flex items-center gap-1.5">
+        {icon && <span className="text-sm leading-none flex-shrink-0">{icon}</span>}
+        <span className={`truncate ${mode === 'muted' ? 'text-gray-400' : 'text-gray-800'}`}>
+          {data.label as string}
+        </span>
+      </div>
+
+      {/* Category badge */}
+      {category && (
+        <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${catCls}`}>
+          {category}
+        </span>
+      )}
+
       <Handle
         type="source"
         position={Position.Bottom}
@@ -109,6 +152,10 @@ function toRFNodes(nodes: WorkflowNodeInstance[]): Node[] {
       config:     n.config ?? {},
       mode:       n.mode ?? 'active',
       expression: (n.config?.['expression'] as string | undefined) ?? undefined,
+      // V2 manifest fields (stored in config or as top-level node properties)
+      icon:     (n as { icon?: string }).icon     ?? (n.config?.['_icon']     as string | undefined),
+      color:    (n as { color?: string }).color   ?? (n.config?.['_color']    as string | undefined),
+      category: (n as { category?: string }).category ?? (n.config?.['_category'] as string | undefined),
     },
   }));
 }
@@ -258,6 +305,12 @@ export interface BulkModeRequest {
   stamp:     number;
 }
 
+/** Request to replace the canvas definition with an AI-generated draft. `stamp` must be unique per request. */
+export interface DraftRequest {
+  definition: QSWorkflowDefinition;
+  stamp:      number;
+}
+
 interface WorkflowCanvasProps {
   definition:          QSWorkflowDefinition;
   onSave?:             (updated: QSWorkflowDefinition) => void;
@@ -265,6 +318,7 @@ interface WorkflowCanvasProps {
   organizationId?:     string;
   projectId?:          string;
   bulkModeRequest?:    BulkModeRequest | null;
+  draftRequest?:       DraftRequest | null;
   /** Called whenever canvas validation changes — true = has blocking errors, Run should be disabled */
   onValidationChange?: (hasErrors: boolean) => void;
 }
@@ -288,6 +342,7 @@ function WorkflowCanvasInner({
   organizationId,
   projectId,
   bulkModeRequest,
+  draftRequest,
   onValidationChange,
 }: WorkflowCanvasProps) {
   const { fitView } = useReactFlow();
@@ -476,6 +531,20 @@ function WorkflowCanvasInner({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOnly, selectedNode, copiedNode, undo, redo, duplicateNode, edges]);
 
+  // ── Phase 4B: AI Draft — replace canvas with generated definition ────────────
+
+  useEffect(() => {
+    if (!draftRequest) return;
+    const rfNodes = toRFNodes(draftRequest.definition.nodes ?? []);
+    const rfEdges = toRFEdges(draftRequest.definition.connections ?? []);
+    setNodes(rfNodes);
+    setEdges(rfEdges);
+    pushHistory(rfNodes, rfEdges);
+    scheduleAutoSave(rfNodes, rfEdges);
+    setTimeout(() => fitView({ padding: 0.15 }), 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftRequest?.stamp]);
+
   // ── Bulk mode ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -627,8 +696,11 @@ function WorkflowCanvasInner({
   const onDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const nodeType  = event.dataTransfer.getData('application/qsos-node-type');
-      const nodeLabel = event.dataTransfer.getData('application/qsos-node-label');
+      const nodeType  = event.dataTransfer.getData('application/lados-node-type');
+      const nodeLabel = event.dataTransfer.getData('application/lados-node-label');
+      const nodeIcon  = event.dataTransfer.getData('application/lados-node-icon');
+      const nodeColor = event.dataTransfer.getData('application/lados-node-color');
+      const nodeCat   = event.dataTransfer.getData('application/lados-node-category');
       if (!nodeType) return;
 
       const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -641,7 +713,15 @@ function WorkflowCanvasInner({
         id:       `${nodeType}-${Date.now()}`,
         type:     rfNodeType(nodeType),
         position,
-        data:     { label: nodeLabel || nodeType, nodeType, config: {}, mode: 'active' },
+        data:     {
+          label:    nodeLabel || nodeType,
+          nodeType,
+          config:   {},
+          mode:     'active',
+          icon:     nodeIcon  || undefined,
+          color:    nodeColor || undefined,
+          category: nodeCat   || undefined,
+        },
       };
 
       setNodes((nds) => {
