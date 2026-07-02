@@ -98,9 +98,10 @@ After the V4 architecture phases, the active next track is:
 
 | File | Purpose |
 |---|---|
-| [Lados_V4_P18P-P20_Master_Checklist.md](Sprint/Lados_V4_P18P-P20_Master_Checklist.md) | Checklist for Phase 18P Marketplace polish, Phase 19 Data Pack Engine, and Phase 20 Professional Lados Pack Bundles |
-| [Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md](Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md) | Detailed sprint plan for turning Lados into a full product platform |
+| [Lados_V4_P18P-P20_Master_Checklist.md](Sprint/Lados_V4_P18P-P20_Master_Checklist.md) | Checklist for Phase 18P Marketplace polish, Phase 19 Data Pack Engine, and Phase 20 Marketplace Knowledge Catalogue documentation |
+| [Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md](Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md) | Detailed sprint plan for turning Lados into a full product platform; Phase 20B keeps the professional bundle work |
 | [Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md](Design/Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md) | Technical paper for Data Packs, clean official pack bundles, and QS guardrails |
+| [Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md](Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md) | Phase 20A planning for Capability Pack taxonomy, node indexing, overlap control, and workflow template ownership |
 | [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md](Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md) | Phase 20 strategy for Marketplace as an AI-ready supplier/seller knowledge catalogue |
 | [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md](Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md) | Active Phase 20 documentation sprint plan for supplier Data Packs, AI search, governance, and marketplace business model |
 | [Lados_V4_P18P-P20_Verification_Playbook.md](Tests/Lados_V4_P18P-P20_Verification_Playbook.md) | Verification playbook for Marketplace, Data Packs, official bundles, and demo workflows |

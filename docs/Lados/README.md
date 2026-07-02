@@ -1,8 +1,12 @@
 # Lados Documentation Library
 
 **Engine:** Lados Core Engine (LCE) V1  
-**Date:** 2026-06-20  
+**Date:** 2026-07-02  
 **Status:** Living library — updated as each phase completes
+
+> **Current development track:** `V4/` — see [V4/README.md](V4/README.md).
+> Build progress lives in [V4/Sprint/Lados_V4_Master_Checklist.md](V4/Sprint/Lados_V4_Master_Checklist.md) (P01–P18) and [V4/Sprint/Lados_V4_P18P-P20_Master_Checklist.md](V4/Sprint/Lados_V4_P18P-P20_Master_Checklist.md) (P18P–P20).
+> Production deployment plan: [V4/Sprint/Lados_V4_Audit_and_Production_Deployment_Sprint_Plan.md](V4/Sprint/Lados_V4_Audit_and_Production_Deployment_Sprint_Plan.md) (PD-1 → PD-6).
 
 ---
 
@@ -52,24 +56,20 @@ Lados Documentation
 
 ---
 
-## Implementation Phases
+## Implementation Status (as of 2026-07-02)
 
-| Phase | Name | Status |
-|---|---|---|
-| Phase 0 | Identity — @lados/, Lados branding | ✅ Complete |
-| Phase 1 | Workflow Engine — real approvals, async, immutable versions | ✅ Complete |
-| Phase 2 | Node Isolation — nodes move into packs | Pending |
-| Phase 3 | Resource Engine | Pending |
-| Phase 4 | Event Bus | Pending |
-| Phase 5 | State Engine | Pending |
-| Phase 6 | Security Engine hardening | Pending |
-| Phase 7 | Foundation Pack | Pending |
-| Phase 8 | Pack Installer and Registry | Pending |
-| Phase 9 | Contractor Edition | Pending |
-| Phase 10 | AI Runtime upgrade | Pending |
-| Phase 11 | Registry maturity | Pending |
-| Phase 12 | Async execution queue | Pending |
-| Phase 13 | LEOS / JKR blueprint | Deferred |
+> This table is a summary only. The **single source of truth** for build progress is the V4 Sprint checklists linked above — do not update phase status here.
+
+| Track | Status |
+|---|---|
+| V4 Phases 1–18 (foundation → external marketplace) | ✅ Complete |
+| Phase 18P — Marketplace polish | ✅ Complete |
+| Phase 19 — Data Pack Engine | ✅ Complete |
+| Phase 19C — Runtime provenance logging | Implemented; runtime/browser verification in PD-1 |
+| Phase 20 — Marketplace Knowledge Catalogue documentation | Active |
+| Phase 20B — Professional Pack Bundles | Not started |
+| PD-1 → PD-6 — Production Deployment track | **Active — PD-1 in progress** |
+| LEOS / JKR blueprint | Deferred |
 
 ---
 

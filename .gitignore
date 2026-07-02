@@ -51,3 +51,9 @@ supabase/.temp/
 _tmp_*
 
 packages/@lados/node-sdk/node-sdk
+
+# Stale in-source build artifacts (tsc outputs to dist/ — see PD-1)
+packages/execution-engine/src/*.js
+packages/execution-engine/src/*.js.map
+packages/execution-engine/src/*.d.ts
+packages/execution-engine/src/*.d.ts.map

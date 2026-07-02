@@ -9,9 +9,9 @@
 
 ## 1. Phase 20 Objective
 
-Document the future Lados Marketplace as an AI-ready knowledge catalogue platform.
+Document the future Lados Marketplace as an AI-ready knowledge catalogue platform, starting with professional Capability Pack planning before Marketplace Data Pack expansion.
 
-Phase 20 should not start by coding more marketplace UI. It should first define the business, product, data, screen, trust, and implementation model for supplier/seller Data Packs.
+Phase 20 should not start by coding more marketplace UI. It should first define the Capability Pack taxonomy and node governance model, then define the business, product, data, screen, trust, and implementation model for supplier/seller Data Packs.
 
 The central decision:
 
@@ -23,7 +23,7 @@ The central decision:
 
 AI conversational search will reduce the value of traditional website-only strategies. A supplier page may still exist, but AI agents need structured, retrievable, source-aware knowledge.
 
-Data Packs become the carrier of that knowledge.
+Capability Packs are the operating grammar of Lados. Data Packs become the carrier of marketplace knowledge.
 
 Phase 20 prepares Lados to serve:
 
@@ -42,6 +42,9 @@ Phase 20 prepares Lados to serve:
 
 ### In Scope
 
+- Capability Pack planning and node taxonomy
+- canonical node ownership and overlap control
+- workflow template ownership and indexing
 - Marketplace strategy
 - Supplier Data Pack model
 - Data Pack publisher requirements
@@ -67,6 +70,8 @@ Phase 20 prepares Lados to serve:
 
 | Decision | Position |
 |---|---|
+| Phase 20 ordering | Capability Packs first, Marketplace Data Packs second |
+| Capability Pack role | Actions, nodes, templates, workflow operating grammar |
 | Marketplace direction | AI-ready knowledge catalogue, not only app store |
 | Supplier unit | Supplier Profile plus Data Pack Listings |
 | Publishable product | Data Pack version with collections and items |
@@ -79,7 +84,30 @@ Phase 20 prepares Lados to serve:
 
 ## 5. Documentation Work Packages
 
-### P20-001 - Marketplace Strategy Paper
+### P20-001 - Capability Pack Planning and Node Taxonomy
+
+Create the Capability Pack planning paper explaining:
+
+- how packs are layered
+- how pack ownership boundaries work
+- how nodes are indexed
+- how canonical node capability keys prevent overlap
+- how workflow templates are owned and indexed
+- how users and AI find the right node among hundreds or thousands
+
+Output:
+
+- `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
+
+Acceptance:
+
+- [x] Capability Pack taxonomy is documented.
+- [x] Node indexing model is documented.
+- [x] Overlap-control rules are documented.
+- [x] Workflow template ownership is documented.
+- [x] Manifest extension direction is documented.
+
+### P20-002 - Marketplace Strategy Paper
 
 Create the strategic paper explaining:
 
@@ -98,7 +126,7 @@ Acceptance:
 - [x] Defines Lados as supplier/seller knowledge catalogue agent.
 - [x] Links Data Packs to marketplace business model.
 
-### P20-002 - Supplier Data Pack Specification
+### P20-003 - Supplier Data Pack Specification
 
 Define:
 
@@ -114,7 +142,7 @@ Acceptance:
 - [ ] Supplier catalogue examples are provided.
 - [ ] Official vs supplier-provided data distinction is documented.
 
-### P20-003 - AI Retrieval and Search Requirements
+### P20-004 - AI Retrieval and Search Requirements
 
 Define:
 
@@ -132,7 +160,7 @@ Acceptance:
 - [ ] Retrieval result shape is documented.
 - [ ] AI answer provenance rules are documented.
 
-### P20-004 - Marketplace Screen Specification
+### P20-005 - Marketplace Screen Specification
 
 Define screens:
 
@@ -151,7 +179,7 @@ Acceptance:
 - [ ] Each screen has purpose, primary actions, empty state, and data dependencies.
 - [ ] Buyer and supplier journeys are both represented.
 
-### P20-005 - Governance and Verification Checklist
+### P20-006 - Governance and Verification Checklist
 
 Define:
 
@@ -168,7 +196,7 @@ Acceptance:
 - [ ] Human approval language is standardized.
 - [ ] Stale/expired data handling is documented.
 
-### P20-006 - Business Model Notes
+### P20-007 - Business Model Notes
 
 Define:
 
@@ -183,7 +211,7 @@ Acceptance:
 - [ ] Business tiers are documented.
 - [ ] Buyer and supplier value propositions are documented.
 
-### P20-007 - Phase 21+ Implementation Backlog
+### P20-008 - Phase 21+ Implementation Backlog
 
 Convert documentation into implementable backlog:
 
@@ -204,6 +232,14 @@ Acceptance:
 ## 6. Proposed Future Architecture
 
 ```text
+Capability Pack
+  -> Pack taxonomy and ownership boundary
+  -> Canonical capability keys
+  -> Nodes
+  -> Workflow templates
+  -> Required lower-layer packs
+  -> Suggested/required Data Packs
+
 Supplier Profile
   -> Data Pack Listing
     -> Data Pack Version
@@ -227,15 +263,17 @@ Workflow Runtime
 
 ## 7. Phase 20 Done Criteria
 
-- [ ] Marketplace strategy paper complete.
+- [x] Capability Pack planning paper complete.
+- [x] Node taxonomy and overlap-control model drafted.
+- [x] Marketplace strategy paper complete.
 - [ ] Supplier Data Pack specification complete.
 - [ ] AI retrieval requirements complete.
 - [ ] Marketplace screen specification complete.
 - [ ] Governance checklist complete.
 - [ ] Business model notes complete.
 - [ ] Phase 21+ implementation backlog complete.
-- [ ] Existing P18P-P20 plan updated to show Phase 20 documentation pivot.
-- [ ] V4 README links updated.
+- [x] Existing P18P-P20 plan updated to show Phase 20 documentation pivot.
+- [x] V4 README links updated.
 
 ---
 
@@ -245,11 +283,14 @@ Workflow Runtime
 
 Done:
 - Reframed Phase 20 as Marketplace Knowledge Catalogue documentation.
+- Added Capability Packs as the first Phase 20 documentation priority before Marketplace Data Packs.
 - Captured AI-search shift and supplier/seller Data Pack marketplace thesis.
 - Created strategy paper and sprint plan.
+- Created Capability Pack planning and node taxonomy paper.
 
 Next:
-- Expand supplier Data Pack specification.
+- Review and refine Capability Pack taxonomy and official pack boundaries.
+- Expand supplier Data Pack specification after Capability Pack planning is accepted.
 - Draft Marketplace screen specification.
 - Draft AI retrieval result shape and governance checklist.
 
@@ -258,6 +299,7 @@ Ad-hoc:
 
 Docs updated:
 - `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`
+- `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
 - `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`
 
 Verification:

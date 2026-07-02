@@ -112,7 +112,7 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 - [x] Add `resourceRequirements` to nodes that touch resources (contractor-pack, foundation-pack)
 - [ ] Add `events` array to all nodes that emit events *(deferred — no EventEmission declarations yet)*
 - [ ] Update node executors to return `{ status, outputs }` shape *(deferred to Phase 3)*
-- [ ] Replace all `console.log()` in node executors with `ctx.log.*` *(deferred to Phase 3)*
+- [x] Replace all `console.log()` in node executors with `ctx.log.*` *(verified 2026-07-02 — no console.log remains in packs/*/src)*
 - [ ] Write unit test for each upgraded node using `MockNodeContext` *(deferred to Phase 1 done criteria)*
 
 ### 1G — Foundation Pack / Node Manifest Auto-Sync
@@ -543,12 +543,12 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 
 ### 12A — BullMQ Job Queue
 
-- [ ] Add Redis to infrastructure (configure `REDIS_URL`)
-- [ ] Create `ExecutionQueue` with BullMQ — enqueue run on trigger
-- [ ] Create `ExecutionWorker` — processes queued runs; replaces fire-and-forget promise
-- [ ] Implement dead letter queue — failed jobs after max retries go to DLQ for manual review
-- [ ] Implement job priority — urgent runs get higher priority
-- [ ] `TEST` Crash worker mid-run → verify job is requeued and completes on restart
+- [x] Add Redis to infrastructure (configure `REDIS_URL`) *(verified 2026-07-02 — Upstash Redis live, Phase 12 commits)*
+- [x] Create `ExecutionQueue` with BullMQ — enqueue run on trigger *(verified — apps/api/src/queue/execution-queue.service.ts)*
+- [x] Create `ExecutionWorker` — processes queued runs; replaces fire-and-forget promise *(verified — apps/api/src/queue/execution-worker.ts)*
+- [x] Implement dead letter queue — failed jobs after max retries go to DLQ for manual review *(verified — queue service + controller)*
+- [ ] Implement job priority — urgent runs get higher priority *(confirmed NOT implemented — PD-6 decision item)*
+- [ ] `TEST` Crash worker mid-run → verify job is requeued and completes on restart *(scheduled: PD-6 chaos drill)*
 
 ### 12B — Sub-Workflow Node
 
@@ -558,13 +558,13 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 
 ### 12C — Production Hardening
 
-- [ ] Load test: 100 concurrent workflow runs — verify no deadlocks or race conditions
-- [ ] Load test: 1000-node workflow — verify planner handles without timeout
-- [ ] `DB` Add missing indexes identified by `EXPLAIN ANALYZE` on slow queries
-- [ ] Security: Full RLS policy audit — verify every table has correct policies
-- [ ] Security: Move all API keys from env vars to Supabase Vault
-- [ ] Error monitoring: integrate Sentry (or equivalent) for API error tracking
-- [ ] Uptime monitoring: configure health check endpoint `GET /health`
+- [ ] Load test: 100 concurrent workflow runs — verify no deadlocks or race conditions *(scheduled: PD-6)*
+- [ ] Load test: 1000-node workflow — verify planner handles without timeout *(scheduled: PD-6)*
+- [ ] `DB` Add missing indexes identified by `EXPLAIN ANALYZE` on slow queries *(scheduled: PD-3 — 34 unindexed FKs identified by advisors 2026-07-02)*
+- [ ] Security: Full RLS policy audit — verify every table has correct policies *(partial: all 42 tables have RLS enabled, verified 2026-07-02; policy-quality fixes scheduled PD-3)*
+- [ ] Security: Move all API keys from env vars to Supabase Vault *(scheduled: PD-3)*
+- [ ] Error monitoring: integrate Sentry (or equivalent) for API error tracking *(scheduled: PD-5)*
+- [ ] Uptime monitoring: configure health check endpoint `GET /health` *(endpoint exists; external uptime check scheduled PD-5)*
 
 ### Phase 12 — Done Criteria ★
 
@@ -620,8 +620,8 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 - [x] History sidebar now includes "Workflow Runs" and "Group Runs" tabs.
 - [x] `corepack pnpm typecheck` passes on 2026-06-30.
 - [x] `corepack pnpm build` passes on 2026-06-30.
-- [ ] Apply `0048_group_run_logs.sql` in Supabase.
-- [ ] Browser verification pending for Run Group modal, selective execution, and group log display.
+- [x] Apply `0048_group_run_logs.sql` in Supabase. *(verified 2026-07-02 — `group_run_logs` table live)*
+- [ ] Browser verification pending for Run Group modal, selective execution, and group log display. *(scheduled: PD-1 verification sweep)*
 - [ ] Follow-up: required-entry-port validation once backend manifest port metadata is available to the group helper.
 
 ### Phase 15 — Resource Bindings
@@ -635,10 +635,10 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 - [x] Binding remove flow supported by `apiClient` handling HTTP 204 responses.
 - [x] Phase 15 smoke script added at `docs/Lados/V4/Tests/test_phase15_resource_bindings.ps1`.
 - [x] `corepack pnpm typecheck` passes on 2026-07-01.
-- [ ] Apply `0049_resource_bindings.sql` in Supabase after the trigger helper fix.
-- [ ] Run authenticated GET/PUT/DELETE smoke test with a real workflow/node/resource.
-- [ ] Browser verify Bindings tab against live resources and remove/rebind behavior.
-- [ ] Trigger a workflow with a real binding and verify merged node config plus audit log entry.
+- [x] Apply `0049_resource_bindings.sql` in Supabase after the trigger helper fix. *(verified 2026-07-02 — `resource_bindings` table live)*
+- [ ] Run authenticated GET/PUT/DELETE smoke test with a real workflow/node/resource. *(scheduled: PD-1 verification sweep)*
+- [ ] Browser verify Bindings tab against live resources and remove/rebind behavior. *(scheduled: PD-1 verification sweep)*
+- [ ] Trigger a workflow with a real binding and verify merged node config plus audit log entry. *(scheduled: PD-1 verification sweep)*
 
 ### Current Handover — 2026-06-30
 
@@ -770,9 +770,9 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 - [x] Installed-state detection disables duplicate registry install button.
 - [x] Phase 18 smoke test scaffold added at `docs/Lados/V4/Tests/test_phase18_registry.ps1`.
 - [x] Full `corepack pnpm typecheck` passed on 2026-07-02.
-- [ ] Apply migration `0050_registry_packs.sql` to Supabase.
-- [ ] Browser verify Browse Registry and Publish Pack tabs against a live API session.
-- [ ] Smoke test submit/verify/install using a real `.ladosPack` bundle.
+- [x] Apply migration `0050_registry_packs.sql` to Supabase. *(verified 2026-07-02 — `registry_packs` table live with 1 listing)*
+- [x] Browser verify Browse Registry and Publish Pack tabs against a live API session. *(completed during Phase 18P closure — see P18P–P20 checklist)*
+- [x] Smoke test submit/verify/install using a real `.ladosPack` bundle. *(completed — lados-demo-pack 0.1.0 submitted/verified/installed)*
 - [ ] `lados-pack publish` CLI deferred.
 
 ### Current Handover - 2026-07-02

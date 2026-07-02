@@ -13,7 +13,7 @@
 |---|---|---|
 | 18P | Marketplace Polish and Data Packs Tab Restoration | Complete |
 | 19 | Data Pack Engine | Complete |
-| 19C | Data Pack Runtime Provenance Logging | Implemented, runtime test deferred |
+| 19C | Data Pack Runtime Provenance Logging | Implemented; migration 0052 applied (verified); runtime/browser tests deferred to PD-1 |
 | 20 | Marketplace Knowledge Catalogue Documentation | Active |
 | 20 | Professional Lados Pack Bundles | Not started |
 
@@ -93,7 +93,7 @@
 - [x] Marketplace Data Packs tab uses live API.
 - [x] Explorer Data Packs panel uses live installed Data Packs.
 - [x] Data Pack detail drawer shows collections and provenance.
-- [ ] Data Pack item search supports collection/tag/region/effective-date filters.
+- [ ] Data Pack item search supports collection/tag/region/effective-date filters. *(collection/packSlug/region/tag done; effective-date filter deferred to PD track)*
 - [x] PropertyPanel supports `data_pack_item` field type.
 - [x] Data Pack item can be selected into node config.
 
@@ -120,7 +120,7 @@
 - [x] API smoke test added.
 - [x] Browser verify Marketplace Data Packs.
 - [x] Browser verify Explorer Data Packs.
-- [ ] Workflow can use a Data Pack item in node config.
+- [ ] Workflow can use a Data Pack item in node config. *(runtime verification deferred to PD-1 sweep)*
 - [x] Typecheck passes.
 - [x] Build passes.
 
@@ -133,13 +133,27 @@
 - [x] Support both in-process execution and BullMQ worker execution.
 - [x] Show Data Pack provenance in `ExecutionLogPanel`.
 - [x] Add Phase 19C smoke test script.
-- [ ] Apply migration 0052.
-- [ ] Run Phase 19C smoke test against a workflow run with a Data Pack item config.
-- [ ] Browser verify Execution Log provenance block.
+- [x] Apply migration 0052. *(verified 2026-07-02 — `execution_logs.data_pack_usages` column exists in live DB)*
+- [ ] Run Phase 19C smoke test against a workflow run with a Data Pack item config. *(deferred to PD-1 verification sweep)*
+- [ ] Browser verify Execution Log provenance block. *(deferred to PD-1 verification sweep)*
 
 ---
 
 ## Phase 20 - Marketplace Knowledge Catalogue Documentation
+
+### Capability Pack Planning First
+
+- [x] Create Capability Pack planning and node taxonomy paper.
+- [x] Define pack layering model.
+- [x] Define official Capability Pack families.
+- [x] Define node indexing model.
+- [x] Define canonical capability registry model.
+- [x] Define node overlap-control rules.
+- [x] Define workflow template ownership model.
+- [x] Define Capability Pack manifest extension direction.
+- [ ] Review official pack boundaries against current packs.
+- [ ] Create first canonical capability registry table/document.
+- [ ] Create official workflow template index.
 
 ### Strategy Documents
 
@@ -322,9 +336,17 @@ Lados V4 can be presented as a full platform only when:
 
 **Done:** Reframed Phase 20 as Marketplace Knowledge Catalogue documentation. Created the strategy paper and active documentation sprint plan for supplier/seller Data Packs, AI conversational search, governance, and marketplace business model.
 
-**Next:** Complete supplier Data Pack specification, AI retrieval requirements, screen specification, governance checklist, business model notes, and Phase 21+ backlog.
+**Next:** Complete Capability Pack boundary review, canonical capability registry, workflow template index, supplier Data Pack specification, AI retrieval requirements, screen specification, governance checklist, business model notes, and Phase 21+ backlog.
 
 **Ad-hoc:** Phase 19C runtime provenance workflow test remains deferred. Professional Lados Pack Bundles are deferred to Phase 20B after the marketplace knowledge-catalogue strategy is accepted.
+
+### 2026-07-02 - Phase 20A Capability Pack planning update
+
+**Done:** Added Phase 20A Capability Pack planning before Marketplace Data Packs. Created the Capability Pack planning and node taxonomy paper covering pack layering, official pack families, node indexing, canonical capability keys, overlap control, template ownership, UI discovery, manifest extensions, and governance checklist.
+
+**Next:** Review current official packs against the proposed boundaries, then create the canonical capability registry and workflow template index.
+
+**Ad-hoc:** Data Pack marketplace documentation should proceed only after Capability Pack ownership and node/template indexing are agreed.
 
 **Verification:** Full `corepack pnpm typecheck` passed. Full `corepack pnpm build` passed after removing one unused type import from the workflow page. Existing non-blocking ESLint warnings remain around hook dependencies and image optimization.
 
