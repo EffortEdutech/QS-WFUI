@@ -51,6 +51,7 @@ import { ConditionNode } from './ConditionNode';
 import SkillGroupNode from './SkillGroupNode';
 import FastGroupBypasserNode from './FastGroupBypasserNode';
 import RunGroupModal from './RunGroupModal';
+import { useCanvasStore } from '@/stores';
 
 // ── Custom SkillNode (V2) ─────────────────────────────────────────────────────
 //
@@ -374,6 +375,10 @@ function sameStringArray(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function isLiveNodeDragChange(change: NodeChange): boolean {
+  return change.type === 'position' && 'dragging' in change && change.dragging === true;
+}
+
 function rfNodeType(nodeType: string): string {
   return nodeType === 'workflow.condition' ? 'condition' : 'skill';
 }
@@ -604,11 +609,17 @@ function WorkflowCanvasInner({
   onValidationChange,
 }: WorkflowCanvasProps) {
   const { fitView } = useReactFlow();
+  const reactFlowNodeTypes = useMemo(() => NODE_TYPES, []);
 
   // ── Core canvas state ──────────────────────────────────────────────────────
 
   const [nodes, setNodes, onNodesChange] = useNodesState(toRFNodes(definition.nodes ?? []));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toRFEdges(definition.connections ?? []));
+  const setStoreNodes = useCanvasStore((state) => state.setNodes);
+  const setStoreEdges = useCanvasStore((state) => state.setEdges);
+  const setStoreSelectedNodeId = useCanvasStore((state) => state.setSelectedNodeId);
+  const setStoreReadOnly = useCanvasStore((state) => state.setReadOnly);
+  const setStoreHasValidationErrors = useCanvasStore((state) => state.setHasValidationErrors);
   const [groups, setGroups] = useState<WorkflowSkillGroup[]>(normalizeGroups(definition.ui?.groups));
   const [fastGroupBypassers, setFastGroupBypassers] = useState<WorkflowFastGroupBypasser[]>(
     normalizeFastGroupBypassers(definition.ui?.fastGroupBypassers),
@@ -697,7 +708,20 @@ function WorkflowCanvasInner({
 
   useEffect(() => {
     onValidationChange?.(hasErrors);
-  }, [hasErrors, onValidationChange]);
+    setStoreHasValidationErrors(hasErrors);
+  }, [hasErrors, onValidationChange, setStoreHasValidationErrors]);
+
+  useEffect(() => {
+    setStoreNodes(nodes);
+  }, [nodes, setStoreNodes]);
+
+  useEffect(() => {
+    setStoreEdges(edges);
+  }, [edges, setStoreEdges]);
+
+  useEffect(() => {
+    setStoreReadOnly(readOnly);
+  }, [readOnly, setStoreReadOnly]);
 
   useEffect(() => {
     return () => {
@@ -1002,19 +1026,6 @@ function WorkflowCanvasInner({
     [fitView],
   );
 
-  const createFastGroupBypasser = useCallback(() => {
-    const offset = fastGroupBypassers.length * 28;
-    const nextBypasser: WorkflowFastGroupBypasser = {
-      id: `fgb_${Date.now().toString(36)}`,
-      name: 'Group Mode Switcher',
-      position: { x: 120 + offset, y: 120 + offset },
-      collapsed: false,
-    };
-    const nextBypassers = [...fastGroupBypassers, nextBypasser];
-    setFastGroupBypassers(nextBypassers);
-    scheduleAutoSave(nodes, edges, groups, nextBypassers);
-  }, [edges, fastGroupBypassers, groups, nodes, scheduleAutoSave]);
-
   const removeFastGroupBypasser = useCallback(
     (bypasserId: string) => {
       const nextBypassers = fastGroupBypassers.filter((bypasser) => bypasser.id !== bypasserId);
@@ -1027,6 +1038,45 @@ function WorkflowCanvasInner({
     },
     [edges, fastGroupBypassers, groups, scheduleAutoSave, setNodes],
   );
+
+  const createFastGroupBypasser = useCallback(() => {
+    const offset = fastGroupBypassers.length * 28;
+    const nextBypasser: WorkflowFastGroupBypasser = {
+      id: `fgb_${Date.now().toString(36)}`,
+      name: 'Group Mode Switcher',
+      position: { x: 120 + offset, y: 120 + offset },
+      collapsed: false,
+    };
+    const nextBypassers = [...fastGroupBypassers, nextBypasser];
+    const nextBypasserNode = createFastGroupBypasserNode(nextBypasser, {
+      bypasser: nextBypasser,
+      groups,
+      readOnly,
+      onModeChange: applyGroupMode,
+      onFocusGroup: focusGroup,
+      onRemove: removeFastGroupBypasser,
+    });
+
+    setFastGroupBypassers(nextBypassers);
+    setNodes((nds) => {
+      const updated = [
+        ...nds.filter((node) => node.id !== nextBypasserNode.id),
+        nextBypasserNode,
+      ];
+      scheduleAutoSave(updated, edges, groups, nextBypassers);
+      return updated;
+    });
+  }, [
+    applyGroupMode,
+    edges,
+    fastGroupBypassers,
+    focusGroup,
+    groups,
+    readOnly,
+    removeFastGroupBypasser,
+    scheduleAutoSave,
+    setNodes,
+  ]);
 
   const selectedSkillNodes = useMemo(
     () => {
@@ -1108,16 +1158,21 @@ function WorkflowCanvasInner({
           onRemove: removeGroup,
         }),
       );
-      const bypasserNodes = fastGroupBypassers.map((bypasser) =>
-        createFastGroupBypasserNode(bypasser, {
-          bypasser,
+      const bypasserNodes = fastGroupBypassers.map((bypasser) => {
+        const existingNode = nds.find((node) => node.id === fastGroupBypasserNodeId(bypasser.id));
+        const visualBypasser = existingNode
+          ? { ...bypasser, position: existingNode.position }
+          : bypasser;
+
+        return createFastGroupBypasserNode(visualBypasser, {
+          bypasser: visualBypasser,
           groups,
           readOnly,
           onModeChange: applyGroupMode,
           onFocusGroup: focusGroup,
           onRemove: removeFastGroupBypasser,
-        }),
-      );
+        });
+      });
       return [...groupNodes, ...bypasserNodes, ...nextSkillNodes];
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1139,7 +1194,9 @@ function WorkflowCanvasInner({
             : [],
         ),
       );
-      const shouldPersistLayout = changes.some((change) => change.type !== 'select');
+      const shouldPersistLayout = changes.some(
+        (change) => change.type !== 'select' && !isLiveNodeDragChange(change),
+      );
       if (!shouldPersistLayout) {
         onNodesChange(changes);
         return;
@@ -1183,7 +1240,8 @@ function WorkflowCanvasInner({
     setSelectedSkillNodeIds((previousIds) =>
       sameStringArray(previousIds, nextSelectedIds) ? previousIds : nextSelectedIds,
     );
-  }, []);
+    setStoreSelectedNodeId(nextSelectedIds[0] ?? null);
+  }, [setStoreSelectedNodeId]);
 
   const handleEdgesChange = useCallback(
     (changes: Parameters<typeof onEdgesChange>[0]) => {
@@ -1353,6 +1411,7 @@ function WorkflowCanvasInner({
         updateGroup(groupId, { bounds: groupBoundsFromNode(node, group) });
         return;
       }
+      if (isCanvasUtilityNode(node)) return;
 
       const nodeWidth = node.width ?? 260;
       const nodeHeight = node.height ?? 90;
@@ -1548,7 +1607,7 @@ function WorkflowCanvasInner({
         )}
 
         <ReactFlow
-          nodeTypes={NODE_TYPES}
+          nodeTypes={reactFlowNodeTypes}
           nodes={nodes}
           edges={styledEdges}
           onNodesChange={readOnly ? undefined : handleNodesChange}
@@ -1592,6 +1651,7 @@ function WorkflowCanvasInner({
         onDeleteNode={readOnly ? undefined : handleDeleteNode}
         organizationId={organizationId}
         projectId={projectId}
+        workflowId={workflowId}
       />
 
       {/* Skill mode context menu */}

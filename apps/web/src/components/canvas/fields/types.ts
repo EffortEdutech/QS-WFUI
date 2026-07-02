@@ -17,6 +17,7 @@ export type ConfigFieldType =
   | 'file'
   | 'json'
   | 'secret'
+  | 'data_pack_item'
   | 'library-picker'   // legacy: same as ui:widget='resource-picker' for library files
   | 'resource';        // legacy: same as ui:widget='resource-picker'
 
@@ -44,8 +45,18 @@ export interface ConfigField {
   'ui:widget'?: UiWidget;
   /** For resource-picker: which resource type to query */
   'ui:resourceType'?: string;
+  dataPackCollection?: string;
+  dataPackSlug?: string;
   /** Legacy alias for ui:resourceType */
   resourceType?: string;
+  /** Some compiled manifests store UI hints as a nested object. */
+  ui?: {
+    widget?: UiWidget | string;
+    resourceType?: string;
+    dataPackCollection?: string;
+    dataPackSlug?: string;
+    displayField?: string;
+  };
   required?: boolean;
   defaultValue?: unknown;
   description?: string;

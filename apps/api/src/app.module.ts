@@ -33,6 +33,8 @@ import { WebhookModule } from './webhook/webhook.module';
 import { MarketplaceModule }  from './marketplace/marketplace.module';
 import { SchedulerModule }    from './scheduler/scheduler.module';     // Phase 10
 import { AuditLogModule }    from './audit-log/audit-log.module';      // Phase 11
+import { ResourceBindingsModule } from './resource-bindings/resource-bindings.module';
+import { DataPacksModule } from './data-packs/data-packs.module';
 import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
@@ -74,6 +76,8 @@ import { MulterModule } from '@nestjs/platform-express';
     WebhookModule,          // Phase 5  -- Inbound webhook delivery → EventBus trigger
     SchedulerModule,        // Phase 10 -- Cron-triggered workflow scheduler
     AuditLogModule,         // Phase 11 -- Audit log API (GET /audit-log + CSV export)
+    ResourceBindingsModule, // Phase 15 -- governed workflow resource bindings
+    DataPacksModule,        // Phase 19 -- governed Data Pack engine
     MulterModule.register({ dest: '/tmp/uploads' }),
   ],
 })

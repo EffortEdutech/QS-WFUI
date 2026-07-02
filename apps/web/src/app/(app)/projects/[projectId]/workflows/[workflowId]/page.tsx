@@ -1,22 +1,25 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import NodePalette from '@/components/canvas/NodePalette';
-import type { BulkModeRequest, DraftRequest } from '@/components/canvas/WorkflowCanvas';
 import type { SkillMode } from '@lados/shared-types';
 import DesignStudio from '@/components/canvas/DesignStudio';
 import ExecutionLogPanel from '@/components/canvas/ExecutionLogPanel';
-import VersionHistoryDrawer from '@/components/canvas/VersionHistoryDrawer';
-import RunHistoryPanel from '@/components/canvas/RunHistoryPanel';
 import FileUploadPanel from '@/components/canvas/FileUploadPanel';
-import LibraryPanel from '@/components/canvas/LibraryPanel';
-import DataPackBrowser from '@/components/canvas/DataPackBrowser';
+import ExplorerShell from '@/components/canvas/explorer/ExplorerShell';
 import { apiClient } from '@/lib/api/client';
 import type { QSWorkflowDefinition, WorkflowConnection, NodeInstanceId } from '@lados/shared-types';
+import {
+  useCanvasStore,
+  useExecutionStore,
+  useUIStore,
+  useWorkflowStore,
+} from '@/stores';
+import type { SaveState } from '@/stores';
+import { useExecutionRunMonitor } from '@/hooks/useExecutionRunMonitor';
 
-// ── Normalize definition from DB ───────────────────────────────────────────────
+// â”€â”€ Normalize definition from DB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Templates stored via SQL seed may use React Flow's "edges" key instead of
 // the canonical "connections" key. Convert to ensure the canvas never crashes.
 function normalizeDefinition(raw: unknown): QSWorkflowDefinition {
@@ -25,7 +28,7 @@ function normalizeDefinition(raw: unknown): QSWorkflowDefinition {
     edges?: Array<{ id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }>;
   };
 
-  // Convert seed-style edges [{id, source, target}] → canonical connections
+  // Convert seed-style edges [{id, source, target}] â†’ canonical connections
   const connections: WorkflowConnection[] = def.connections?.length
     ? def.connections
     : (def.edges ?? []).map((e) => ({
@@ -59,36 +62,13 @@ const WorkflowCanvas = dynamic(() => import('@/components/canvas/WorkflowCanvas'
   ssr: false,
   loading: () => (
     <div className="flex h-full items-center justify-center text-sm text-gray-400">
-      Loading canvas…
+      Loading canvas...
     </div>
   ),
 });
 
 interface PageProps {
   params: { projectId: string; workflowId: string };
-}
-
-type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
-
-interface NodeLog {
-  nodeId: string;
-  nodeType: string;
-  nodeName: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting';
-  inputs?: Record<string, unknown>;
-  outputs?: Record<string, unknown>;
-  error?: { code: string; message: string };
-  messages: string[];
-  startedAt?: string;
-  completedAt?: string;
-  durationMs?: number;
-}
-
-interface RunSummary {
-  runId: string;
-  status: string;
-  durationMs: number;
-  nodeCount: number;
 }
 
 // Node types that need a file input before running
@@ -103,48 +83,65 @@ function workflowNeedsFile(definition: QSWorkflowDefinition): boolean {
   if (nodes.length === 0) return false;
 
   // If there are read_excel nodes, only prompt for upload when at least one
-  // has no library_file_id — the library takes priority at runtime so nodes
+  // has no library_file_id â€” the library takes priority at runtime so nodes
   // that are already wired to the library don't need a runtime upload.
   const readExcelNodes = nodes.filter((n) => n.type === 'document.read_excel');
   if (readExcelNodes.length > 0) {
     return readExcelNodes.some((n) => !n.config?.library_file_id);
   }
 
-  // No read_excel nodes — fall back to type-based check.
+  // No read_excel nodes â€” fall back to type-based check.
   return nodes.some((n) => FILE_NODE_TYPES.has(n.type));
 }
 
 export default function WorkflowEditorPage({ params }: PageProps) {
   const { projectId, workflowId } = params;
-  const [definition, setDefinition] = useState<QSWorkflowDefinition | null>(null);
-  const [workflowName, setWorkflowName] = useState('');
-  const [saveState, setSaveState] = useState<SaveState>('saved');
-  const [error, setError] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string>('');
+  const definition = useWorkflowStore((state) => state.definition);
+  const workflowName = useWorkflowStore((state) => state.workflowName);
+  const saveState = useWorkflowStore((state) => state.saveState);
+  const error = useWorkflowStore((state) => state.loadError);
+  const setWorkflow = useWorkflowStore((state) => state.setWorkflow);
+  const setDefinition = useWorkflowStore((state) => state.setDefinition);
+  const setWorkflowName = useWorkflowStore((state) => state.setWorkflowName);
+  const setSaveState = useWorkflowStore((state) => state.setSaveState);
+  const setLoadError = useWorkflowStore((state) => state.setLoadError);
+  const organizationId = useUIStore((state) => state.organizationId) ?? '';
+  const setOrganizationId = useUIStore((state) => state.setOrganizationId);
 
-  // ── Execution state ────────────────────────────────────────────────────────
-  const [running, setRunning] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
-  const [runSummary, setRunSummary] = useState<RunSummary | null>(null);
-  const [runLogs, setRunLogs] = useState<NodeLog[]>([]);
-  const [runError, setRunError] = useState<string | null>(null);
+  // â”€â”€ Execution state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const running = useExecutionStore((state) => state.polling || state.runStatus === 'starting' || state.runStatus === 'running');
+  const showLogs = useUIStore((state) => state.showExecutionLog);
+  const setShowLogs = useUIStore((state) => state.setShowExecutionLog);
+  const runSummary = useExecutionStore((state) => state.runSummary);
+  const runLogs = useExecutionStore((state) => state.nodeLogList);
+  const runError = useExecutionStore((state) => state.runError);
+  const activeRunId = useExecutionStore((state) => state.runId);
+  const startRun = useExecutionStore((state) => state.startRun);
+  const setRunSummary = useExecutionStore((state) => state.setRunSummary);
+  const setNodeLogs = useExecutionStore((state) => state.setNodeLogs);
+  const setRunError = useExecutionStore((state) => state.setRunError);
+  const resetRun = useExecutionStore((state) => state.resetRun);
+  useExecutionRunMonitor(activeRunId);
 
-  // ── Sidebar tab ───────────────────────────────────────────────────────────
-  const [sidebarTab, setSidebarTab] = useState<'nodes' | 'documents' | 'datapacks' | 'history'>('nodes');
+  // â”€â”€ Sidebar tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const setExplorerTab = useUIStore((state) => state.setExplorerTab);
+  const setExplorerCollapsed = useUIStore((state) => state.setExplorerCollapsed);
   const [groupRunRefreshKey, setGroupRunRefreshKey] = useState(0);
 
-  // ── Validation state (S18-001) ────────────────────────────────────────────
-  const [hasValidationErrors, setHasValidationErrors] = useState(false);
+  // â”€â”€ Validation state (S18-001) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const hasValidationErrors = useCanvasStore((state) => state.hasValidationErrors);
+  const setHasValidationErrors = useCanvasStore((state) => state.setHasValidationErrors);
 
-  // ── Version history drawer (S18-002) ──────────────────────────────────────
-  const [showVersions, setShowVersions] = useState(false);
+  // â”€â”€ Version history drawer (S18-002) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Bulk mode request (S14-007) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const bulkModeRequest = useCanvasStore((state) => state.bulkModeRequest);
+  const setBulkModeRequest = useCanvasStore((state) => state.setBulkModeRequest);
 
-  // ── Bulk mode request (S14-007) ───────────────────────────────────────────
-  const [bulkModeRequest, setBulkModeRequest] = useState<BulkModeRequest | null>(null);
-
-  // ── Phase 4B: AI Design Studio ────────────────────────────────────────────
-  const [showDesignStudio, setShowDesignStudio] = useState(false);
-  const [draftRequest, setDraftRequest]         = useState<DraftRequest | null>(null);
+  // â”€â”€ Phase 4B: AI Design Studio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const showDesignStudio = useUIStore((state) => state.showDesignStudio);
+  const setShowDesignStudio = useUIStore((state) => state.setShowDesignStudio);
+  const draftRequest = useCanvasStore((state) => state.draftRequest);
+  const setDraftRequest = useCanvasStore((state) => state.setDraftRequest);
 
   const handleApplyDraft = useCallback((draft: QSWorkflowDefinition) => {
     setDraftRequest({ definition: draft, stamp: Date.now() });
@@ -154,18 +151,21 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     setBulkModeRequest({ nodeTypes, mode, stamp: Date.now() });
   }, []);
 
-  // ── File upload state ──────────────────────────────────────────────────────
-  const [showUploadPanel, setShowUploadPanel] = useState(false);
+  // â”€â”€ File upload state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const showUploadPanel = useUIStore((state) => state.showUploadPanel);
+  const setShowUploadPanel = useUIStore((state) => state.setShowUploadPanel);
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-  // ── Load workflow ──────────────────────────────────────────────────────────
+  // â”€â”€ Load workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     // Load org context for file upload
     apiClient.get<{ id: string; name: string; membership: { role: string } }[]>('/organizations')
       .then((res) => {
-        if (res.data?.[0]) setOrganizationId(res.data[0].id);
+        const org = res.data?.[0];
+        if (!org) return;
+        setOrganizationId(org.id);
       });
 
     apiClient
@@ -174,16 +174,20 @@ export default function WorkflowEditorPage({ params }: PageProps) {
       )
       .then((res) => {
         if (res.success && res.data) {
-          setDefinition(normalizeDefinition(res.data.definition));
-          setWorkflowName(res.data.name);
+          setWorkflow(
+            workflowId,
+            projectId,
+            res.data.name,
+            normalizeDefinition(res.data.definition),
+          );
         } else {
-          setError(res.error?.message ?? 'Failed to load workflow');
+          setLoadError(res.error?.message ?? 'Failed to load workflow');
         }
       })
-      .catch(() => setError('Network error loading workflow'));
-  }, [projectId, workflowId]);
+      .catch(() => setLoadError('Network error loading workflow'));
+  }, [projectId, setLoadError, setOrganizationId, setWorkflow, workflowId]);
 
-  // ── Auto-save ──────────────────────────────────────────────────────────────
+  // â”€â”€ Auto-save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleSave = useCallback(
     async (updated: QSWorkflowDefinition) => {
@@ -201,7 +205,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     [projectId, workflowId],
   );
 
-  // ── Run workflow ───────────────────────────────────────────────────────────
+  // â”€â”€ Run workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleRunClick = useCallback(() => {
     if (!definition) return;
@@ -227,13 +231,12 @@ export default function WorkflowEditorPage({ params }: PageProps) {
   }, []);
 
   async function executeRun(fileId?: string) {
-    setRunning(true);
+    resetRun();
+    useExecutionStore.getState().setPolling(true);
     setShowLogs(true);
-    setRunSummary(null);
-    setRunLogs([]);
     setRunError(null);
 
-    // Build inputs — pass file_id if available
+    // Build inputs â€” pass file_id if available
     const inputs: Record<string, unknown> = {};
     const resolvedFileId = fileId ?? uploadedFileId;
     if (resolvedFileId) {
@@ -249,55 +252,19 @@ export default function WorkflowEditorPage({ params }: PageProps) {
 
       if (!res.success || !res.data) {
         setRunError(res.error?.message ?? 'Run failed');
-        setRunning(false);
+        useExecutionStore.getState().setPolling(false);
         return;
       }
 
       const { runId } = res.data;
-
-      // Poll every 2s until terminal state (completed / failed / paused)
-      const TERMINAL = new Set(['completed', 'failed', 'paused']);
-      const MAX_POLLS = 150; // 5 minutes max
-      let polls = 0;
-
-      const poll = async (): Promise<void> => {
-        polls++;
-        if (polls > MAX_POLLS) {
-          setRunError('Run timed out waiting for completion');
-          setRunning(false);
-          return;
-        }
-
-        const runRes = await apiClient.get<RunSummary>(`/runs/${runId}`);
-        if (!runRes.success || !runRes.data) {
-          setRunError('Could not fetch run status');
-          setRunning(false);
-          return;
-        }
-
-        const run = runRes.data;
-        setRunSummary(run);
-
-        if (TERMINAL.has(run.status)) {
-          // Run finished — fetch final logs
-          const logsRes = await apiClient.get<NodeLog[]>(`/runs/${runId}/logs`);
-          setRunLogs(logsRes.data ?? []);
-          setRunning(false);
-          return;
-        }
-
-        // Still running — poll again after 2s
-        setTimeout(() => void poll(), 2000);
-      };
-
-      void poll();
+      startRun(runId);
     } catch (err: unknown) {
       setRunError(err instanceof Error ? err.message : 'Unexpected error');
-      setRunning(false);
+      useExecutionStore.getState().setPolling(false);
     }
   }
 
-  // ── Publish workflow ───────────────────────────────────────────────────────
+  // â”€â”€ Publish workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const [publishing, setPublishing] = useState(false);
   const [publishState, setPublishState] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -319,13 +286,13 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     }
   }, [projectId, workflowId]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const saveLabel: Record<SaveState, string> = {
-    saved: '✓ Saved',
-    saving: 'Saving…',
+    saved: 'Saved',
+    saving: 'Saving...',
     unsaved: 'Unsaved changes',
-    error: '⚠ Save failed',
+    error: 'Save failed',
   };
   const saveLabelColor: Record<SaveState, string> = {
     saved: 'text-green-600',
@@ -333,28 +300,27 @@ export default function WorkflowEditorPage({ params }: PageProps) {
     unsaved: 'text-amber-500',
     error: 'text-red-500',
   };
-
   if (error) {
     return <div className="flex h-screen items-center justify-center text-red-500">{error}</div>;
   }
   if (!definition) {
     return (
       <div className="flex h-screen items-center justify-center text-gray-400 text-sm">
-        Loading workflow…
+        Loading workflow...
       </div>
     );
   }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
-      {/* ── Toolbar ── */}
+      {/* â”€â”€ Toolbar â”€â”€ */}
       <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4">
         {/* Breadcrumb */}
         <Link
           href={`/projects/${projectId}`}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+          className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
         >
-          ← Workflows
+          &larr; Back
         </Link>
         <span className="text-gray-200">|</span>
         <span className="text-sm font-semibold text-gray-800 truncate max-w-xs">
@@ -370,14 +336,13 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           <>
             <span className="text-gray-300">|</span>
             <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-              <span>📎</span>
               <span className="truncate max-w-[160px]">{uploadedFileName}</span>
               <button
                 onClick={() => { setUploadedFileId(null); setUploadedFileName(null); }}
                 className="text-green-400 hover:text-green-600 ml-0.5"
                 title="Remove file"
               >
-                ✕
+                x
               </button>
             </span>
           </>
@@ -388,21 +353,24 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           <button
             onClick={() => setShowDesignStudio(true)}
             className="text-xs font-medium text-purple-600 hover:text-purple-800 px-2 py-1.5 rounded hover:bg-purple-50 transition-colors border border-purple-200 hover:border-purple-300"
-            title="AI Design Studio — generate a workflow from a description"
+            title="AI Design Studio - generate a workflow from a description"
           >
-            ✨ AI Design
+            AI Design
           </button>
 
-          {/* Version history button — S18-002 */}
+          {/* Version history button â€” S18-002 */}
           <button
-            onClick={() => setShowVersions(true)}
+            onClick={() => {
+              setExplorerTab('versions');
+              setExplorerCollapsed(false);
+            }}
             className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
             title="Version history"
           >
-            🕐 Versions
+            Versions
           </button>
 
-          {/* Export button — S16-004 */}
+          {/* Export button â€” S16-004 */}
           <button
             onClick={async () => {
               const res = await apiClient.get<Record<string, unknown>>(
@@ -420,14 +388,14 @@ export default function WorkflowEditorPage({ params }: PageProps) {
             className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
             title="Export workflow JSON"
           >
-            ↓ Export
+            Export
           </button>
 
           {/* Publish button */}
           <button
             onClick={() => void handlePublish()}
             disabled={publishing || hasValidationErrors}
-            title={hasValidationErrors ? 'Fix connection errors before publishing' : 'Publish workflow — register event triggers'}
+            title={hasValidationErrors ? 'Fix connection errors before publishing' : 'Publish workflow - register event triggers'}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
               publishState === 'ok'
                 ? 'bg-green-50 text-green-700 border-green-300'
@@ -438,7 +406,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
                     : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
             }`}
           >
-            {publishing ? '⏳ Publishing…' : publishState === 'ok' ? '✓ Published' : publishState === 'error' ? '⚠ Failed' : '🚀 Publish'}
+            {publishing ? 'Publishing...' : publishState === 'ok' ? 'Published' : publishState === 'error' ? 'Failed' : 'Publish'}
           </button>
 
           {/* Run button */}
@@ -455,10 +423,10 @@ export default function WorkflowEditorPage({ params }: PageProps) {
             {running ? (
               <>
                 <span className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-green-400 animate-spin" />
-                Running…
+                Running...
               </>
             ) : (
-              <>▶ Run</>
+              <>Run</>
             )}
           </button>
 
@@ -473,52 +441,36 @@ export default function WorkflowEditorPage({ params }: PageProps) {
         </div>
       </header>
 
-      {/* ── Canvas area ── */}
+      {/* â”€â”€ Canvas area â”€â”€ */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        {/* ── Left sidebar with tab switcher ── */}
-        <div className="flex flex-col w-56 flex-shrink-0 border-r border-gray-200 bg-white">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 flex-shrink-0">
-            {([
-              { id: 'nodes',     label: '⬡ Skills'    },
-              { id: 'datapacks', label: '📦 Data'      },
-              { id: 'documents', label: '📂 Files'     },
-              { id: 'history',   label: '🕐 History'   },
-            ] as const).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setSidebarTab(id)}
-                className={`flex-1 py-2 text-[10px] font-medium transition-colors ${
-                  sidebarTab === id
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {/* Panel content */}
-          <div className="flex-1 overflow-hidden">
-            {sidebarTab === 'nodes'     && <NodePalette onBulkMode={handleBulkMode} />}
-            {sidebarTab === 'datapacks' && <DataPackBrowser />}
-            {sidebarTab === 'documents' && <LibraryPanel organizationId={organizationId} projectId={projectId} />}
-            {sidebarTab === 'history'   && (
-              <RunHistoryPanel
-                workflowId={workflowId}
-                projectId={projectId}
-                groupRunRefreshKey={groupRunRefreshKey}
-                reRunning={running}
-                onLoadRun={(summary, logs) => {
-                  setRunSummary(summary);
-                  setRunLogs(logs);
-                  setShowLogs(true);
-                }}
-                onReRun={() => void executeRun()}
-              />
-            )}
-          </div>
-        </div>
+        <ExplorerShell
+          workflowId={workflowId}
+          projectId={projectId}
+          organizationId={organizationId}
+          readOnly={saveState === 'error'}
+          groupRunRefreshKey={groupRunRefreshKey}
+          reRunning={running}
+          onBulkMode={handleBulkMode}
+          onLoadRun={(summary, logs) => {
+            setRunSummary(summary);
+            setNodeLogs(logs);
+            setShowLogs(true);
+          }}
+          onReRun={() => void executeRun()}
+          onApplyTemplate={handleApplyDraft}
+          onVersionRestored={() => {
+            apiClient
+              .get<{ definition: unknown; name: string }>(
+                `/projects/${projectId}/workflows/${workflowId}`,
+              )
+              .then((res) => {
+                if (res.success && res.data) {
+                  setDefinition(normalizeDefinition(res.data.definition));
+                  setWorkflowName(res.data.name);
+                }
+              });
+          }}
+        />
         <main className="relative flex-1 overflow-hidden flex flex-col">
           {/* Canvas */}
           <div className="flex-1 overflow-hidden">
@@ -531,7 +483,8 @@ export default function WorkflowEditorPage({ params }: PageProps) {
               bulkModeRequest={bulkModeRequest}
               draftRequest={draftRequest}
               onGroupRunCompleted={() => {
-                setSidebarTab('history');
+                setExplorerTab('runs');
+                setExplorerCollapsed(false);
                 setGroupRunRefreshKey((key) => key + 1);
               }}
               onValidationChange={setHasValidationErrors}
@@ -552,25 +505,25 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           {/* Run error banner */}
           {runError && !showLogs && (
             <div className="absolute bottom-4 left-4 right-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center gap-2">
-              <span>⚠ {runError}</span>
-              <button onClick={() => setRunError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+              <span className="font-semibold">Warning</span>
+              <span>{runError}</span>
+              <button onClick={() => setRunError(null)} className="ml-auto text-red-400 hover:text-red-600">x</button>
             </div>
           )}
 
           {/* Phase 12: paused-for-approval banner */}
           {runSummary?.status === 'paused' && (
             <div className="absolute bottom-4 left-4 right-4 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-center gap-3 shadow-md z-10">
-              <span className="text-lg">⏸</span>
               <span className="flex-1">
-                <strong>Workflow paused</strong> — waiting for human approval.
+                <strong>Workflow paused</strong> - waiting for human approval.
               </span>
               <Link
                 href="/approvals"
                 className="px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700 transition-colors"
               >
-                Go to Approvals →
+                Go to Approvals
               </Link>
-              <button onClick={() => setRunSummary(null)} className="text-amber-400 hover:text-amber-600">✕</button>
+              <button onClick={() => setRunSummary(null)} className="text-amber-400 hover:text-amber-600">x</button>
             </div>
           )}
 
@@ -597,28 +550,7 @@ export default function WorkflowEditorPage({ params }: PageProps) {
           onApply={handleApplyDraft}
         />
       )}
-
-      {/* Version history drawer — S18-002 */}
-      {showVersions && (
-        <VersionHistoryDrawer
-          projectId={projectId}
-          workflowId={workflowId}
-          onClose={() => setShowVersions(false)}
-          onRestored={() => {
-            // Reload the workflow definition after restore
-            apiClient
-              .get<{ definition: unknown; name: string }>(
-                `/projects/${projectId}/workflows/${workflowId}`,
-              )
-              .then((res) => {
-                if (res.success && res.data) {
-                  setDefinition(normalizeDefinition(res.data.definition));
-                  setWorkflowName(res.data.name);
-                }
-              });
-          }}
-        />
-      )}
     </div>
   );
 }
+

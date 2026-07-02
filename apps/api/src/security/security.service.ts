@@ -111,6 +111,13 @@ const PERMISSION_MATRIX: Record<string, OrgRole[]> = {
   // Job queue ops (Phase 12)
   'queue.view':            ['owner', 'admin'],
 
+  // External pack registry (Phase 18)
+  'registry.verify':       ['owner', 'admin'],
+
+  // Data Packs (Phase 19)
+  'data_pack.view':        ['owner', 'admin', 'member', 'driver', 'operator', 'viewer'],
+  'data_pack.manage':      ['owner', 'admin'],
+
   // General membership (any authenticated member of the org)
   'membership':            ['owner', 'admin', 'member', 'driver', 'operator', 'viewer'],
 };

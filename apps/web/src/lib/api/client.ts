@@ -34,7 +34,20 @@ async function request<T>(
     return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: 'API server unreachable' } } as ApiResponse<T>;
   }
 
-  return res.json() as Promise<ApiResponse<T>>;
+  if (res.status === 204) {
+    return { success: true, data: null, error: null } as ApiResponse<T>;
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return {
+      success: res.ok,
+      data: null,
+      error: res.ok ? null : { code: String(res.status), message: res.statusText },
+    } as ApiResponse<T>;
+  }
+
+  return JSON.parse(text) as ApiResponse<T>;
 }
 
 /** Multipart upload — does NOT set Content-Type so browser adds boundary automatically */

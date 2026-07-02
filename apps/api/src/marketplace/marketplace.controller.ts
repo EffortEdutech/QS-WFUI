@@ -30,6 +30,7 @@ import { SecurityEngineService } from '../security/security.service';
 import { PackRegistryService }   from '../pack/pack-registry.service';
 import { PackInstallerService }  from '../pack/pack-installer.service';
 import type { AuthenticatedRequest } from '../common/types/authenticated-request';
+import { RegistryService } from './registry.service';
 
 /**
  * Normalise a pack ID that may arrive as the short form ('construction-pack')
@@ -47,6 +48,7 @@ export class MarketplaceController {
     private readonly registry:   PackRegistryService,
     private readonly installer:  PackInstallerService,
     private readonly security:   SecurityEngineService,
+    private readonly externalRegistry: RegistryService,
   ) {}
 
   /**
@@ -125,6 +127,25 @@ export class MarketplaceController {
     const id = normalisePackId(packId);
     await this.installer.disablePack(id);
     return { success: true, data: { packId: id, status: 'disabled', installed: false } };
+  }
+
+  /**
+   * POST /marketplace/registry/:listingId/install
+   *
+   * Install a verified external registry pack into the local pack catalogue.
+   * This registers the pack manifest and node declarations; uploaded runtime
+   * code execution remains disabled until the sandbox/verification boundary is built.
+   */
+  @Post('registry/:listingId/install')
+  async installRegistryPack(
+    @Param('listingId') listingId: string,
+    @Query('organizationId') orgId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (!orgId) throw new BadRequestException('organizationId query param is required');
+    await this.security.requirePermission(req.user.id, orgId, 'workflow.publish');
+    const data = await this.externalRegistry.installListing(listingId);
+    return { success: true, data };
   }
 }
 

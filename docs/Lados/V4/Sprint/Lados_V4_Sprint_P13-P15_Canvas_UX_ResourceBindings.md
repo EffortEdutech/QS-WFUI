@@ -513,7 +513,7 @@ Execution engine resolves bindings at triggerRun() time
 
 #### P15-001 — Migration 0046: resource_bindings table
 
-**File:** `supabase/migrations/0046_resource_bindings.sql`
+**File:** `supabase/migrations/0049_resource_bindings.sql`
 
 ```sql
 -- ── resource_bindings ────────────────────────────────────────────────────────
@@ -812,6 +812,16 @@ Invoke-RestMethod -Uri "http://localhost:4000/api/v1/workflows/<WORKFLOW_ID>/bin
 - [ ] Inspector shows `[Config] [Bindings]` tabs for nodes with resource-picker fields
 - [ ] Bindings tab shows existing binding with resource name, and [Remove] button works
 - [ ] Mark Phase 15 complete in this checklist
+
+**2026-07-01 status update**
+
+- [x] Actual migration file is `supabase/migrations/0049_resource_bindings.sql` because `0046` was already used by an earlier migration.
+- [x] API module, shared types, execution binding resolution, audit event path, inspector Bindings tab, and 204 delete handling are implemented.
+- [x] `corepack pnpm typecheck` passes across the full monorepo.
+- [x] Authenticated smoke script added: `docs/Lados/V4/Tests/test_phase15_resource_bindings.ps1`.
+- [ ] Live Supabase apply is still pending from this workspace because Supabase CLI is not linked here and npm registry access failed during CLI discovery.
+- [ ] Run authenticated GET/PUT/DELETE smoke test after applying `0049_resource_bindings.sql`.
+- [ ] Browser verify Bindings tab and live workflow run binding resolution before marking Phase 15 complete.
 
 ---
 

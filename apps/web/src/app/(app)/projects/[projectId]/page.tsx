@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
 import PipelineCanvas from '@/components/pipeline/PipelineCanvas';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Workflow {
   id: string;
@@ -30,7 +30,13 @@ interface WorkflowTemplate {
   preview_nodes: string[];
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+interface ProjectSummary {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const STATUS_COLORS: Record<string, string> = {
   draft:     'bg-gray-100 text-gray-600',
@@ -39,23 +45,24 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const ICON_MAP: Record<string, string> = {
-  'file-text':       '📄',
-  'layout-template': '🗂️',
-  'zap':             '⚡',
-  'settings':        '⚙️',
+  'file-text':       '',
+  'layout-template': '',
+  'zap':             '',
+  'settings':        '',
 };
 
 function templateIcon(icon: string): string {
-  return ICON_MAP[icon] ?? '📋';
+  return ICON_MAP[icon] ?? '';
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'workflows' | 'pipeline'>('workflows');
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [project, setProject] = useState<ProjectSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Modal state
@@ -74,12 +81,12 @@ export default function ProjectDetailPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Import workflow — S16-004
+  // Import workflow â€” S16-004
   const [showImport, setShowImport] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
-  // ── Load workflows ──────────────────────────────────────────────────────────
+  // â”€â”€ Load workflows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const loadWorkflows = useCallback(() => {
     setLoading(true);
@@ -89,9 +96,23 @@ export default function ProjectDetailPage() {
       .finally(() => setLoading(false));
   }, [projectId]);
 
+  useEffect(() => {
+    apiClient
+      .get<{ id: string }[]>('/organizations')
+      .then((orgRes) => {
+        const orgId = orgRes.data?.[0]?.id;
+        if (!orgId) return;
+        void apiClient
+          .get<ProjectSummary>(`/organizations/${orgId}/projects/${projectId}`)
+          .then((projectRes) => {
+            if (projectRes.success && projectRes.data) setProject(projectRes.data);
+          });
+      });
+  }, [projectId]);
+
   useEffect(() => { loadWorkflows(); }, [loadWorkflows]);
 
-  // ── Load templates ──────────────────────────────────────────────────────────
+  // â”€â”€ Load templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   function openTemplateModal() {
     setShowTemplates(true);
@@ -117,7 +138,7 @@ export default function ProjectDetailPage() {
       .finally(() => setTemplatesLoading(false));
   }
 
-  // ── Delete workflow ─────────────────────────────────────────────────────────
+  // â”€â”€ Delete workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function handleDeleteWorkflow(wfId: string) {
     setDeleteLoading(true);
@@ -130,7 +151,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // ── Create blank workflow ───────────────────────────────────────────────────
+  // â”€â”€ Create blank workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function handleCreateBlank(e: React.FormEvent) {
     e.preventDefault();
@@ -148,7 +169,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // ── Create from template ────────────────────────────────────────────────────
+  // â”€â”€ Create from template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function handleCreateFromTemplate(e: React.FormEvent) {
     e.preventDefault();
@@ -175,7 +196,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // ── Import workflow ─────────────────────────────────────────────────────────
+  // â”€â”€ Import workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -207,7 +228,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <div className="p-8">
@@ -223,8 +244,10 @@ export default function ProjectDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Project</h1>
-            <p className="mt-1 text-sm text-gray-500 font-mono">{projectId}</p>
+            <h1 className="text-2xl font-bold text-gray-900">{project?.name ?? 'Project'}</h1>
+            {project?.code && (
+              <p className="mt-1 text-sm text-gray-500">{project.code}</p>
+            )}
           </div>
           {activeTab === 'workflows' && (
             <div className="flex gap-2">
@@ -233,13 +256,13 @@ export default function ProjectDetailPage() {
                 className="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
                 title="Import workflow from .lados.json file"
               >
-                ↑ Import
+                Import
               </button>
               <button
                 onClick={openTemplateModal}
                 className="px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5"
               >
-                <span>🗂️</span> From Template
+                From Template
               </button>
               <button
                 onClick={() => { setShowBlank(true); setError(null); }}
@@ -275,23 +298,22 @@ export default function ProjectDetailPage() {
           </button>
         </div>
 
-        {/* ── Pipeline Tab ──────────────────────────────────────────────────── */}
+        {/* â”€â”€ Pipeline Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {activeTab === 'pipeline' && (
           <PipelineCanvas projectId={projectId} />
         )}
 
-        {/* ── Workflows Tab ─────────────────────────────────────────────────── */}
+        {/* â”€â”€ Workflows Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {activeTab === 'workflows' && (
           <>
         {/* Loading */}
         {loading && (
-          <p className="text-sm text-gray-400 text-center py-16">Loading…</p>
+          <p className="text-sm text-gray-400 text-center py-16">Loading...</p>
         )}
 
         {/* Empty */}
         {!loading && workflows.length === 0 && (
           <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-            <div className="text-4xl mb-3">🗂️</div>
             <p className="text-gray-700 text-sm font-semibold">No workflows yet</p>
             <p className="text-gray-400 text-xs mt-1 mb-5">
               Start from a template for the fastest path to your first run
@@ -301,7 +323,7 @@ export default function ProjectDetailPage() {
                 onClick={openTemplateModal}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
               >
-                🗂️ From Template
+                From Template
               </button>
               <button
                 onClick={() => { setShowBlank(true); setError(null); }}
@@ -349,12 +371,12 @@ export default function ProjectDetailPage() {
                     {new Date(wf.updated_at).toLocaleDateString()}
                   </p>
                   <span className="text-xs text-blue-500 group-hover:text-blue-600 mt-1 block">
-                    Open canvas →
+                    Open canvas
                   </span>
                 </div>
               </Link>
 
-              {/* Delete button — sits outside Link, top-right corner */}
+              {/* Delete button â€” sits outside Link, top-right corner */}
               {confirmDeleteId === wf.id ? (
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white border border-red-200 rounded-lg px-2 py-1 shadow-sm z-10">
                   <span className="text-xs text-red-600 font-medium">Delete?</span>
@@ -363,7 +385,7 @@ export default function ProjectDetailPage() {
                     disabled={deleteLoading}
                     className="text-[11px] bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700 disabled:opacity-50"
                   >
-                    {deleteLoading ? '…' : 'Yes'}
+                    {deleteLoading ? '...' : 'Yes'}
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(null)}
@@ -393,7 +415,7 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      {/* ── Modal: Create Blank ─────────────────────────────────────────────── */}
+      {/* â”€â”€ Modal: Create Blank â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showBlank && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -412,7 +434,7 @@ export default function ProjectDetailPage() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  placeholder="e.g. BOQ to RFQ — Block A"
+                  placeholder="e.g. BOQ to RFQ - Block A"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -439,7 +461,7 @@ export default function ProjectDetailPage() {
                   disabled={saving}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? 'Creating…' : 'Create'}
+                  {saving ? 'Creating...' : 'Create'}
                 </button>
               </div>
             </form>
@@ -447,7 +469,7 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* ── Modal: Import Workflow ─────────────────────────────────────────── */}
+      {/* â”€â”€ Modal: Import Workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -468,9 +490,8 @@ export default function ProjectDetailPage() {
                 ? 'border-blue-200 bg-blue-50 cursor-not-allowed'
                 : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
             }`}>
-              <span className="text-3xl">{importing ? '⏳' : '📂'}</span>
               <span className="text-sm font-medium text-gray-700">
-                {importing ? 'Importing…' : 'Click to select .lados.json'}
+                {importing ? 'Importing...' : 'Click to select .lados.json'}
               </span>
               <span className="text-xs text-gray-400">or drag and drop</span>
               <input
@@ -496,7 +517,7 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* ── Modal: Template Picker ──────────────────────────────────────────── */}
+      {/* â”€â”€ Modal: Template Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showTemplates && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
@@ -507,20 +528,20 @@ export default function ProjectDetailPage() {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Workflow Templates</h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Start from a pre-built workflow — nodes are wired, ready to configure
+                    Start from a pre-built workflow - nodes are wired and ready to configure
                   </p>
                 </div>
                 <button
                   onClick={() => { setShowTemplates(false); setSelectedTemplate(null); setError(null); }}
                   className="text-gray-400 hover:text-gray-600 text-lg"
-                >✕</button>
+                >Close</button>
               </div>
             </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6">
               {templatesLoading && (
-                <p className="text-sm text-gray-400 text-center py-8">Loading templates…</p>
+                <p className="text-sm text-gray-400 text-center py-8">Loading templates...</p>
               )}
 
               {!templatesLoading && templatesError && (
@@ -572,14 +593,11 @@ export default function ProjectDetailPage() {
                                 <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
                                   {n}
                                 </span>
-                                {i < tpl.preview_nodes.length - 1 && (
-                                  <span className="text-gray-300 text-[10px]">→</span>
-                                )}
+                                {i < tpl.preview_nodes.length - 1 ? null : null}
                               </span>
                             ))}
                           </div>
                         </div>
-                        <span className="text-blue-400 group-hover:text-blue-600 text-sm flex-shrink-0">→</span>
                       </div>
                     </button>
                   ))}
@@ -593,7 +611,7 @@ export default function ProjectDetailPage() {
                     onClick={() => { setSelectedTemplate(null); setError(null); }}
                     className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-4"
                   >
-                    ← Back to templates
+                    Back to templates
                   </button>
 
                   {/* Selected template summary */}
@@ -609,9 +627,7 @@ export default function ProjectDetailPage() {
                           <span className="text-[10px] bg-white text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-mono">
                             {n}
                           </span>
-                          {i < selectedTemplate.preview_nodes.length - 1 && (
-                            <span className="text-blue-300 text-[10px]">→</span>
-                          )}
+                          {i < selectedTemplate.preview_nodes.length - 1 ? null : null}
                         </span>
                       ))}
                     </div>
@@ -649,7 +665,7 @@ export default function ProjectDetailPage() {
                         disabled={saving}
                         className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {saving ? 'Creating…' : '🗂️ Create from Template'}
+                        {saving ? 'Creating...' : 'Create from Template'}
                       </button>
                     </div>
                   </form>

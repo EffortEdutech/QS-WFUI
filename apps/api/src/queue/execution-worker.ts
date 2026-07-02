@@ -30,6 +30,7 @@ import { StateEngineService } from '../state-engine/state-engine.service';
 import { SecurityEngineService } from '../security/security.service';
 import { ApprovalTaskCreator } from '../approval/approval-task.creator';
 import { ArtifactService }  from '../artifact/artifact.service';
+import { DataPacksService } from '../data-packs/data-packs.service';
 import { ExecutionQueueService, parseRedisUrl } from './execution-queue.service';
 import { buildRealNodeResolver } from '../execution/real-nodes';
 import { runWorkflow } from '@lados/execution-engine';
@@ -60,6 +61,7 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
     private readonly security:      SecurityEngineService,
     private readonly approvalTaskCreator: ApprovalTaskCreator,
     private readonly artifactService: ArtifactService,
+    private readonly dataPacks: DataPacksService,
     private readonly queueService:  ExecutionQueueService,
     private readonly emitter:       EventEmitter2,
     private readonly emailService:  EmailService,    // Phase 10
@@ -190,6 +192,8 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
       throw err; // re-throw so BullMQ records the failure and retries
     }
 
+    const dataPackUsages = await this.dataPacks.resolveRuntimeUsagesForDefinition(options.definition);
+
     // Persist node logs
     if (result.logs.length > 0) {
       const logRows = result.logs.map((log) => ({
@@ -205,6 +209,7 @@ export class ExecutionWorker implements OnModuleInit, OnModuleDestroy {
         started_at:   log.startedAt ?? null,
         completed_at: log.completedAt ?? null,
         duration_ms:  log.durationMs ?? null,
+        data_pack_usages: dataPackUsages.get(log.nodeId) ?? [],
       }));
       await this.supabase.admin.from('execution_logs').insert(logRows);
     }

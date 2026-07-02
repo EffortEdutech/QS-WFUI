@@ -17,6 +17,19 @@ The V4 architecture is an evolutionary build on the existing codebase. It is not
 
 ---
 
+## Resource Naming
+
+Lados now has two related but different "resource" concepts. Use these names consistently:
+
+| Term | Meaning | Primary storage |
+|---|---|---|
+| **Workspace Resource** | A real business object such as Job, Invoice, Vehicle, Driver, BOQ, Claim, Variation, or Defect. These appear in `/resources` and Explorer. | `lados_resources` |
+| **Resource Binding** | A workflow-level mapping from a node field key to a Workspace Resource. The workflow stores the binding and resolves it at run time. | `resource_bindings` |
+
+UI copy should say **Workspace Resource** when referring to the business record, and **Resource Binding** when referring to the governed workflow mapping.
+
+---
+
 ## Folder Structure
 
 ```
@@ -78,6 +91,21 @@ docs/Lados/V4/
 ---
 
 ## Active Sprint Plans (`Sprint/`)
+
+## Next Productization Track
+
+After the V4 architecture phases, the active next track is:
+
+| File | Purpose |
+|---|---|
+| [Lados_V4_P18P-P20_Master_Checklist.md](Sprint/Lados_V4_P18P-P20_Master_Checklist.md) | Checklist for Phase 18P Marketplace polish, Phase 19 Data Pack Engine, and Phase 20 Professional Lados Pack Bundles |
+| [Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md](Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md) | Detailed sprint plan for turning Lados into a full product platform |
+| [Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md](Design/Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md) | Technical paper for Data Packs, clean official pack bundles, and QS guardrails |
+| [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md](Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md) | Phase 20 strategy for Marketplace as an AI-ready supplier/seller knowledge catalogue |
+| [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md](Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md) | Active Phase 20 documentation sprint plan for supplier Data Packs, AI search, governance, and marketplace business model |
+| [Lados_V4_P18P-P20_Verification_Playbook.md](Tests/Lados_V4_P18P-P20_Verification_Playbook.md) | Verification playbook for Marketplace, Data Packs, official bundles, and demo workflows |
+
+---
 
 | File | Phases | Status |
 |---|---|---|
@@ -141,12 +169,17 @@ PowerShell scripts for API validation. Run from the repo root.
 cd "C:\Users\user\Documents\00 CIPAA contract work dairy\QS-WFUI"
 .\docs\Lados\V4\Tests\test_phase9.ps1
 .\docs\Lados\V4\Tests\test_phase10.ps1
+.\docs\Lados\V4\Tests\test_phase15_resource_bindings.ps1 -Token "..." -WorkflowId "..." -NodeId "..." -BindingKey "..." -ResourceId "..." -ResourceType "..."
+.\docs\Lados\V4\Tests\test_phase19_data_packs.ps1 -Token "..." -OrganizationId "..."
+.\docs\Lados\V4\Tests\test_phase19c_data_pack_provenance.ps1 -Token "..." -RunId "..."
 ```
 
 | Script | Tests |
 |---|---|
 | `test_phase9.ps1` | Phase 9 — Finance Pack: invoice, payment, purchase order API endpoints |
 | `test_phase10.ps1` | Phase 10 — AI Runtime: assistant sessions, context builder, output ledger |
+| `test_phase19_data_packs.ps1` | Phase 19 — Data Pack catalog, install, item search, and provenance detail |
+| `test_phase19c_data_pack_provenance.ps1` | Phase 19C — Execution log Data Pack runtime provenance |
 
 ---
 

@@ -19,6 +19,7 @@ import type { Node } from 'reactflow';
 
 import ManifestFieldRouter from './ManifestFieldRouter';
 import ManifestSection from './ManifestSection';
+import ResourceBindingPanel from './ResourceBindingPanel';
 import type { ConfigField } from './fields';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -223,6 +224,7 @@ interface PropertyPanelProps {
   onDeleteNode?: (nodeId: string) => void;
   organizationId?: string;
   projectId?: string;
+  workflowId?: string;
 }
 
 export default function PropertyPanel({
@@ -232,21 +234,25 @@ export default function PropertyPanel({
   onDeleteNode,
   organizationId,
   projectId,
+  workflowId,
 }: PropertyPanelProps) {
   const [nodeDef, setNodeDef] = useState<NodeDefinition | null>(null);
   const [config,  setConfig]  = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [labelValue, setLabelValue] = useState('');
+  const [activeTab, setActiveTab] = useState<'config' | 'bindings'>('config');
 
   useEffect(() => {
     if (!selectedNode) {
       setNodeDef(null);
       setConfig({});
       setLabelValue('');
+      setActiveTab('config');
       return;
     }
 
     setLabelValue((selectedNode.data?.label as string) ?? '');
+    setActiveTab('config');
 
     const nodeType = selectedNode.data?.nodeType as string | undefined;
     if (!nodeType) return;
@@ -286,6 +292,13 @@ export default function PropertyPanel({
   }
 
   const accentColor = nodeDef?.color ?? nodeDef?.packs?.color ?? '#6B7280';
+  const bindableFields = (nodeDef?.config_schema ?? []).filter((field) => (
+    field.type === 'resource' ||
+    field['ui:widget'] === 'resource-picker' ||
+    field.ui?.widget === 'resource-picker' ||
+    Boolean(field['ui:resourceType'] ?? field.resourceType ?? field.ui?.resourceType)
+  ));
+  const hasBindingsTab = bindableFields.length > 0;
 
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col overflow-hidden border-l border-gray-200 bg-white">
@@ -415,6 +428,33 @@ export default function PropertyPanel({
 
         {/* ── Config fields — manifest-driven ─────────────────────────────── */}
         <div className="p-3">
+          {hasBindingsTab && (
+            <div className="mb-3 grid grid-cols-2 rounded border border-gray-200 bg-gray-50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('config')}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  activeTab === 'config'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Config
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('bindings')}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  activeTab === 'bindings'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Bindings
+              </button>
+            </div>
+          )}
+
           {loading && (
             <p className="text-xs text-gray-400 text-center py-4">Loading…</p>
           )}
@@ -429,13 +469,22 @@ export default function PropertyPanel({
             </p>
           )}
 
-          {!loading && nodeDef && (
+          {!loading && nodeDef && activeTab === 'config' && (
             <ConfigFields
               nodeDef={nodeDef}
               config={config}
               onChange={handleChange}
               organizationId={organizationId}
               projectId={projectId}
+            />
+          )}
+
+          {!loading && nodeDef && activeTab === 'bindings' && (
+            <ResourceBindingPanel
+              workflowId={workflowId}
+              nodeId={selectedNode.id}
+              fields={nodeDef.config_schema}
+              organizationId={organizationId}
             />
           )}
         </div>

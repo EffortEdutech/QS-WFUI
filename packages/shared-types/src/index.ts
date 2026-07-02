@@ -14,3 +14,4 @@ export * from './status';
 export * from './pagination';
 export * from './workflow';
 export * from './organization';
+export * from './resourceBindings';

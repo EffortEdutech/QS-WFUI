@@ -9,6 +9,8 @@ import { StateEngineModule } from '../state-engine/state-engine.module';
 import { ApprovalCoreModule } from '../approval/approval-core.module';
 import { ArtifactModule } from '../artifact/artifact.module';
 import { PackModule } from '../pack/pack.module';
+import { ResourceBindingsModule } from '../resource-bindings/resource-bindings.module';
+import { DataPacksModule } from '../data-packs/data-packs.module';
 
 // AiModule, NotificationModule, DocumentModule, EventBusModule are @Global() — available via global scope.
 // Phase 7:  ApprovalCoreModule provides ApprovalTaskCreator (no circular dep with ExecutionModule).
@@ -18,7 +20,17 @@ import { PackModule } from '../pack/pack.module';
 // Phase 14: PackModule provides PackRegistryService for org node override → skipNodes resolution.
 
 @Module({
-  imports: [FileModule, LibraryModule, ResourceModule, StateEngineModule, ApprovalCoreModule, ArtifactModule, PackModule],
+  imports: [
+    FileModule,
+    LibraryModule,
+    ResourceModule,
+    StateEngineModule,
+    ApprovalCoreModule,
+    ArtifactModule,
+    PackModule,
+    ResourceBindingsModule,
+    DataPacksModule,
+  ],
   controllers: [ExecutionController],
   providers: [ExecutionService, ExecutionWorker],
   exports: [ExecutionService],

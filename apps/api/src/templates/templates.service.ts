@@ -22,6 +22,18 @@ export class TemplatesService {
     return { templates: data ?? [] };
   }
 
+  async findOne(templateId: string) {
+    const { data, error } = await this.supabase.admin
+      .from('workflow_templates')
+      .select('id, slug, name, description, category, tags, icon, color, preview_nodes, definition, sort_order')
+      .or(`id.eq.${templateId},slug.eq.${templateId}`)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data) throw new NotFoundException(`Template "${templateId}" not found`);
+    return data;
+  }
+
   async instantiate(
     templateId: string,
     projectId: string,

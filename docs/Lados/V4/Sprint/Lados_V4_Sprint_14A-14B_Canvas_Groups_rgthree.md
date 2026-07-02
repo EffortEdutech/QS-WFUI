@@ -458,6 +458,13 @@ git commit -m "feat(canvas): Sprint 14B — Selective Group Execution / Run Grou
 - [x] Fixed React Flow responsiveness loop by keeping selection-only updates out of group frame and Fast Bypasser persistence.
 - [x] Added group deletion from group header, context menu, and Delete/Backspace without deleting member skills.
 - [x] Made Group Mode Switcher movable via its header drag handle while preserving internal `fastGroupBypasser` compatibility.
-- [ ] Browser verify canvas placement, movement persistence, group mode toggles, and full workflow execution behavior.
+- [x] Browser UI/UX verified for canvas placement, grouping, delete, and Group Mode Switcher movement.
+- [x] Fixed first-add/first-move stability by inserting the Group Mode Switcher into React Flow state immediately and preserving live position during sync.
+- [x] Added Lados favicon assets and metadata to resolve `/favicon.ico` 404.
+- [x] Replaced app-shell sidebar `L` mark with Lados icon and updated browser title metadata.
+- [x] Added transparent sidebar Lados icon asset so the app-shell mark follows the active theme/background.
+- [x] Memoized React Flow `nodeTypes` and changed Group Mode Switcher drag persistence to final drag events.
+- [x] Excluded Group Mode Switcher from drag-to-group membership logic so group frames do not capture it.
+- [ ] Verify group mode toggles and full workflow execution behavior with a functional workflow.
 
 ---

@@ -35,6 +35,12 @@ export class TemplatesController {
     return { success: true, data, error: null };
   }
 
+  @Get(':id')
+  async getTemplate(@Param('id') templateId: string) {
+    const data = await this.templates.findOne(templateId);
+    return { success: true, data, error: null };
+  }
+
   @Post(':id/instantiate')
   @UseGuards(JwtGuard)
   @HttpCode(201)

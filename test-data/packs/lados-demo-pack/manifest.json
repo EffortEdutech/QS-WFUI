@@ -1,0 +1,45 @@
+{
+  "id": "demo.lados-demo-pack",
+  "displayName": "Lados Demo Pack",
+  "version": "0.1.0",
+  "author": "Lados Platform",
+  "description": "Safe manifest-only demo pack for Phase 18P marketplace publish, verify, and install testing.",
+  "icon": "package",
+  "color": "#2563EB",
+  "tags": ["demo", "marketplace", "phase18p"],
+  "dependencies": [],
+  "nodes": [
+    {
+      "type": "demo.lados_demo_pack.echo_context",
+      "name": "Echo Context",
+      "description": "Demo node declaration used to verify registry install and node registry visibility. Runtime execution is intentionally not provided in Phase 18P.",
+      "category": "registry",
+      "tags": ["demo", "verification"],
+      "inputs": [
+        {
+          "id": "input",
+          "label": "Input",
+          "type": "object",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "id": "output",
+          "label": "Output",
+          "type": "object"
+        }
+      ],
+      "config": [
+        {
+          "key": "message",
+          "label": "Message",
+          "type": "text",
+          "required": false,
+          "default": "Hello from Lados Demo Pack"
+        }
+      ],
+      "uiSchema": {}
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ExecutionService — Phase 12 (Async Execution Queue)
  *
  * - Creates run records and enqueues jobs via ExecutionQueueService
@@ -25,6 +25,8 @@ import { NotificationService } from '../notification/notification.service';
 import { EmailService }        from '../notification/email.service';   // Phase 10
 import { SmsService }          from '../notification/sms.service';     // Phase 10
 import { ResourceService } from '../resource/resource.service';
+import { ResourceBindingsService } from '../resource-bindings/resource-bindings.service';
+import { DataPacksService } from '../data-packs/data-packs.service';
 import { EventBusService } from '../event-bus/event-bus.service';
 import { StateEngineService } from '../state-engine/state-engine.service';
 import { SecurityEngineService } from '../security/security.service';
@@ -58,6 +60,8 @@ export class ExecutionService implements OnModuleInit {
     private readonly artifactService: ArtifactService,
     private readonly executionQueue: ExecutionQueueService,
     private readonly packRegistry: PackRegistryService,
+    private readonly resourceBindings: ResourceBindingsService,
+    private readonly dataPacks: DataPacksService,
     private readonly emailService: EmailService,    // Phase 10
     private readonly smsService: SmsService,        // Phase 10
   ) {
@@ -183,6 +187,9 @@ export class ExecutionService implements OnModuleInit {
       throw new BadRequestException('Published workflow has no nodes');
     }
 
+    const resolved = await this.resolveDefinitionBindings(workflowId, definition);
+    definition = resolved.definition;
+
     // Create execution_runs row (status = created)
     const { data: run, error: runErr } = await this.supabase.admin
       .from('execution_runs')
@@ -203,6 +210,17 @@ export class ExecutionService implements OnModuleInit {
     if (runErr ?? !run) throw new Error(runErr?.message ?? 'Failed to create run record');
 
     const runId = run.id as string;
+
+    if (resolved.bindingCount > 0) {
+      await this.writeBindingsResolvedAudit({
+        orgId: project.organization_id as string,
+        projectId: workflow.project_id as string,
+        workflowId,
+        runId,
+        userId,
+        bindingCount: resolved.bindingCount,
+      });
+    }
 
     // Publish workflow.started event (fire-and-forget — never blocks execution)
     void this.eventBus.publish({
@@ -266,9 +284,64 @@ export class ExecutionService implements OnModuleInit {
   async runDefinitionInline(
     options: Omit<RunnerOptions, 'nodeResolver'>,
   ): Promise<ExecutionResult> {
+    const resolved = await this.resolveDefinitionBindings(options.workflowId, options.definition);
     return runWorkflow({
       ...options,
+      definition: resolved.definition,
       nodeResolver: this.nodeResolver,
+    });
+  }
+
+  private async resolveDefinitionBindings(
+    workflowId: string,
+    definition: QSWorkflowDefinition,
+  ): Promise<{ definition: QSWorkflowDefinition; bindingCount: number }> {
+    const bindings = await this.resourceBindings.resolveBindings(workflowId);
+    const bindingCount = Object.values(bindings).reduce(
+      (total, nodeBindings) => total + Object.keys(nodeBindings).length,
+      0,
+    );
+
+    if (bindingCount === 0) {
+      return { definition, bindingCount };
+    }
+
+    const nodes = definition.nodes.map((node) => {
+      const nodeBindings = bindings[node.id as string];
+      if (!nodeBindings) return node;
+
+      return {
+        ...node,
+        config: {
+          ...(node.config ?? {}),
+          ...nodeBindings,
+          _bindingsResolved: Object.keys(nodeBindings),
+        },
+      };
+    });
+
+    return { definition: { ...definition, nodes }, bindingCount };
+  }
+
+  private async writeBindingsResolvedAudit(input: {
+    orgId: string;
+    projectId: string;
+    workflowId: string;
+    runId: string;
+    userId: string;
+    bindingCount: number;
+  }): Promise<void> {
+    await this.supabase.admin.from('audit_log').insert({
+      org_id: input.orgId,
+      project_id: input.projectId,
+      actor_id: input.userId,
+      event_type: 'execution.bindings_resolved',
+      entity_type: 'execution_run',
+      entity_id: input.runId,
+      metadata: {
+        workflowId: input.workflowId,
+        bindingCount: input.bindingCount,
+      },
     });
   }
 
@@ -414,6 +487,8 @@ export class ExecutionService implements OnModuleInit {
       return;
     }
 
+    const dataPackUsages = await this.dataPacks.resolveRuntimeUsagesForDefinition(options.definition);
+
     if (result.logs.length > 0) {
       const logRows = result.logs.map((log) => ({
         run_id:       runId,
@@ -428,6 +503,7 @@ export class ExecutionService implements OnModuleInit {
         started_at:   log.startedAt ?? null,
         completed_at: log.completedAt ?? null,
         duration_ms:  log.durationMs ?? null,
+        data_pack_usages: dataPackUsages.get(log.nodeId) ?? [],
       }));
       await this.supabase.admin.from('execution_logs').insert(logRows);
     }
@@ -650,8 +726,11 @@ export class ExecutionService implements OnModuleInit {
       .eq('id', workflow['published_version_id'] as string)
       .single();
 
-    const definition = (snap?.['definition'] ?? workflow['definition']) as QSWorkflowDefinition;
+    let definition = (snap?.['definition'] ?? workflow['definition']) as QSWorkflowDefinition;
     if (!definition?.nodes?.length) return;
+
+    const resolved = await this.resolveDefinitionBindings(workflowId, definition);
+    definition = resolved.definition;
 
     const { data: run } = await this.supabase.admin
       .from('execution_runs')
@@ -672,6 +751,17 @@ export class ExecutionService implements OnModuleInit {
     if (!run) return;
 
     const runId = run['id'] as string;
+
+    if (resolved.bindingCount > 0) {
+      await this.writeBindingsResolvedAudit({
+        orgId,
+        projectId: workflow['project_id'] as string,
+        workflowId,
+        runId,
+        userId: actorId,
+        bindingCount: resolved.bindingCount,
+      });
+    }
 
     void this.eventBus.publish({
       orgId,

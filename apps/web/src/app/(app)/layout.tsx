@@ -92,8 +92,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="w-56 flex-shrink-0 flex flex-col bg-gray-900 text-white overflow-visible">
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 py-5 border-b border-gray-700">
-          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">
-            L
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
+            <img
+              src="/lados-icon-transparent.png"
+              alt="Lados"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <p className="text-sm font-semibold leading-none">Lados</p>

@@ -18,7 +18,7 @@ export default function ResourcePickerField({ field, value, onChange, organizati
   const resourceId = (value as string) ?? '';
 
   // Resolve resource type from either ui:resourceType or legacy resourceType
-  const resourceType = field['ui:resourceType'] ?? field.resourceType;
+  const resourceType = field['ui:resourceType'] ?? field.resourceType ?? field.ui?.resourceType;
 
   useEffect(() => {
     if (!organizationId) return;

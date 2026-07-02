@@ -10,14 +10,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.1",
-    "@supabase/supabase-js": "^2.45.4",
     "@lados/shared-types": "workspace:*",
     "@lados/workflow-json": "workspace:*",
+    "@supabase/ssr": "^0.5.1",
+    "@supabase/supabase-js": "^2.45.4",
     "next": "14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/node": "^20.16.10",

@@ -13,7 +13,7 @@
 | Phase | Title | Status | Est. Days |
 |---|---|---|---|
 | P16 | Full Explorer | ⬜ Not started | 3–4 days |
-| P17 | Frontend State Engine | ⬜ Not started | 4–5 days |
+| P17 | Frontend State Engine | 🟡 In progress | 4–5 days |
 | P18 | External Marketplace | ⬜ Not started | 5–7 days |
 | — | **Total** | — | **12–16 days** |
 
@@ -358,8 +358,8 @@ pnpm --filter @lados/web add zustand
 No other dependencies needed. Zustand has no peer dependencies.
 
 **Checklist:**
-- [ ] Zustand added to `apps/web/package.json`
-- [ ] `pnpm install` succeeds
+- [x] Zustand added to `apps/web/package.json`
+- [x] `pnpm install` succeeds
 
 ---
 
@@ -413,9 +413,9 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
 ```
 
 **Checklist:**
-- [ ] `apps/web/src/stores/workflowStore.ts` created
-- [ ] All 5 workflow state fields + actions defined
-- [ ] TypeScript-clean (no `any`)
+- [x] `apps/web/src/stores/workflowStore.ts` created
+- [x] All 5 workflow state fields + actions defined
+- [x] TypeScript-clean (no `any`)
 
 ---
 
@@ -450,8 +450,8 @@ interface CanvasState {
 > **Important:** ReactFlow manages its own internal node/edge state. `CanvasStore` holds the *canonical* graph state that is serialised into `QSWorkflowDefinition`. The two are kept in sync via `WorkflowCanvas`'s `onNodesChange` / `onEdgesChange` callbacks which call `setNodes` / `setEdges`.
 
 **Checklist:**
-- [ ] `apps/web/src/stores/canvasStore.ts` created
-- [ ] Node/edge arrays, selection, viewport, readOnly, validation error fields defined
+- [x] `apps/web/src/stores/canvasStore.ts` created
+- [x] Node/edge arrays, selection, viewport, readOnly, validation error fields defined
 
 ---
 
@@ -513,9 +513,9 @@ export const useExecutionStore = create<ExecutionState>((set) => ({
 ```
 
 **Checklist:**
-- [ ] `apps/web/src/stores/executionStore.ts` created
-- [ ] `NodeLog` and `RunStatus` types exported
-- [ ] All execution lifecycle actions defined
+- [x] `apps/web/src/stores/executionStore.ts` created
+- [x] `NodeLog` and `RunStatus` types exported
+- [x] All execution lifecycle actions defined
 
 ---
 
@@ -550,8 +550,8 @@ interface UIState {
 ```
 
 **Checklist:**
-- [ ] `apps/web/src/stores/uiStore.ts` created
-- [ ] All panel open states covered
+- [x] `apps/web/src/stores/uiStore.ts` created
+- [x] All panel open states covered
 
 ---
 
@@ -569,7 +569,7 @@ export type { NodeLog, NodeRunStatus, RunStatus } from './executionStore';
 ```
 
 **Checklist:**
-- [ ] `stores/index.ts` barrel export created
+- [x] `stores/index.ts` barrel export created
 
 ---
 
@@ -1124,6 +1124,42 @@ Invoke-RestMethod -Uri "http://localhost:4000/api/v1/marketplace/registry/<LISTI
 
 ## Full V4 Architecture Gap Closure
 
+---
+
+## Phase 18 Implementation Addendum - 2026-07-02
+
+**Done in code:**
+- Created `supabase/migrations/0050_registry_packs.sql` for `registry_packs` and the private `lados-pack-bundles` Supabase Storage bucket.
+- Added `RegistryService` and `RegistryController` with:
+  - `POST /registry/packs/submit`
+  - `GET /registry/packs`
+  - `GET /registry/packs/:packId`
+  - `GET /registry/packs/:packId/:version`
+  - `PATCH /registry/packs/:listingId/verify`
+- Added `POST /marketplace/registry/:listingId/install`.
+- Added `registry.verify` permission for owner/admin roles.
+- Rebuilt `/marketplace` into three tabs: Installed, Browse Registry, Publish Pack.
+- Added registry preview modal and installed-state detection.
+- Added `docs/Lados/V4/Pack_Bundle_Format.md`.
+- Added `docs/Lados/V4/Tests/test_phase18_registry.ps1`.
+- Full `corepack pnpm typecheck` passed on 2026-07-02.
+
+**Important execution boundary:**
+- Phase 18 installs external registry packs by registering the pack row and node manifests from `manifest.json`.
+- Uploaded JavaScript executor code is stored with the bundle but is not dynamically loaded or executed yet.
+- Dynamic executor loading is deferred until Lados has a sandboxed verifier/runtime boundary.
+
+**Not done yet:**
+- Apply migration `0050_registry_packs.sql` to Supabase.
+- Browser verify `/marketplace` Browse Registry and Publish Pack tabs against the live API.
+- Smoke test submit/install using a real `.ladosPack` bundle.
+- `lados-pack publish` CLI remains deferred; UI upload is the Phase 18 publish path currently implemented.
+
+**Next:**
+- Apply migration 0050.
+- Create or submit one test `.ladosPack`, verify it, then install it from Browse Registry.
+- Decide whether Phase 18B should implement the `lados-pack publish` CLI or move directly to the sandboxed external executor runtime.
+
 After all three phases complete, the summary table becomes:
 
 | Document Claim | Reality | Closed by |
@@ -1158,3 +1194,62 @@ After all three phases complete, the summary table becomes:
 - Bundle storage in Supabase Storage — use a private bucket (not public). `bundleUrl` is a signed URL generated at install time, not a permanent public link.
 - Never use `bash cat >>` on FUSE-mounted files. Always use Read/Edit/Write tools.
 - AI guardrail: AI nodes cannot call `approval.decide`. This restriction applies to executors loaded from the registry — validate during submit.
+---
+
+## Phase 17 Completion Addendum - 2026-07-01
+
+**Status:** Code complete; live browser verification pending.
+
+**Completed:**
+- [x] `WorkflowStore`, `CanvasStore`, `ExecutionStore`, and persisted `UIStore` are wired into the workflow page.
+- [x] Workflow metadata, workflow definition, save state, load error, execution state, execution logs, sidebar tab, panel visibility, organization id, canvas validation state, bulk mode requests, and draft requests now use stores instead of page-local business state.
+- [x] `WorkflowCanvas.tsx` syncs ReactFlow nodes, edges, selected node id, read-only state, and validation state into `CanvasStore`.
+- [x] `ExecutionLogPanel.tsx` reads run summary, node logs, and loading state from `ExecutionStore`, while preserving optional props for compatibility.
+- [x] `useExecutionRunMonitor.ts` extracts run monitoring from the workflow page and updates `ExecutionStore` through authenticated `apiClient` polling.
+- [x] `corepack pnpm --filter web typecheck` passed on 2026-07-01.
+- [x] `corepack pnpm --filter @lados/shared-types typecheck` passed on 2026-07-01.
+
+**Deferred / follow-up:**
+- [ ] True browser SSE remains deferred. `GET /runs/:runId/stream` is currently protected by JWT `Authorization` header auth, while native browser `EventSource` cannot send custom auth headers.
+- [ ] Live per-node canvas colouring via `SkillNode.tsx` remains pending until the backend stream path can safely deliver per-node status events to the browser.
+- [ ] Workflow page is not yet reduced below 100 lines; it is now a thinner orchestrator, but full page slimming should be done after Phase 16 Explorer lands.
+- [ ] Full monorepo `corepack pnpm typecheck` should be retried. The first run hit a transient Node native assertion inside `shared-types`; focused checks passed individually.
+- [ ] Browser verify workflow load, edit/save, execution log panel, persisted sidebar tab/collapse state, and run monitoring against a live API session.
+
+**Decision note:** The original P17-010 called for `useExecutionSSE.ts`. The implemented hook is named `useExecutionRunMonitor.ts` because the current backend/browser auth contract makes direct SSE unreliable. This is a deliberate stabilization step, not a feature removal.
+## Phase 16 Completion Addendum - 2026-07-02
+
+**Status:** Code complete; browser verification pending.
+
+**Completed:**
+- [x] `ExplorerShell.tsx` created and wired into the workflow page.
+- [x] Explorer owns global search, active tab state, collapse state, and `Cmd/Ctrl + E` collapse/expand shortcut.
+- [x] Explorer persists active tab to `localStorage` key `lados.explorer.activeTab`.
+- [x] Explorer persists collapsed state to `localStorage` key `lados.explorer.collapsed`.
+- [x] Existing Nodes, Files, Data Packs, and Runs panels are preserved inside Explorer.
+- [x] Added Resources tab with project resource listing, type filter, global search, click-through, and drag metadata.
+- [x] Added Templates tab with template list, category/search filtering, read-only canvas preview modal, and Apply-to-canvas flow.
+- [x] Added minimal `GET /workflow-templates/:id` API route to fetch template definitions for preview/apply.
+- [x] Added Packs tab with installed pack list, status badges, `/packs` and `/marketplace` links, and expandable node lists.
+- [x] Added inline Versions tab with save snapshot and restore flow, replacing the previous drawer-only version workflow.
+- [x] Workflow page no longer renders the raw 4-tab sidebar.
+- [x] `corepack pnpm --filter web typecheck` passed on 2026-07-02.
+- [x] `corepack pnpm --filter api typecheck` passed on 2026-07-02.
+- [x] Full `corepack pnpm typecheck` passed on 2026-07-02.
+
+**Implementation decision:**
+- The Explorer ships with 8 tabs instead of only 6: Nodes, Resources, Templates, Runs, Packs, Versions, Files, and Data. This preserves the existing working `documents` and `datapacks` panels while adding the new Phase 16 Explorer capabilities.
+
+**Pending browser verification:**
+- [ ] Explorer renders on the live workflow page without console errors.
+- [ ] Global search filters Nodes, Resources, Templates, Packs, and Versions.
+- [ ] `Cmd/Ctrl + E` collapses and expands Explorer.
+- [ ] Active tab and collapsed state persist after reload.
+- [ ] Nodes drag-to-canvas still works.
+- [ ] Resources list/filter/drag metadata works with live data.
+- [ ] Templates preview modal opens and Apply replaces the canvas.
+- [ ] Runs tab loads workflow/group history.
+- [ ] Packs tab expands and shows pack nodes.
+- [ ] Versions tab saves/restores snapshots inline.
+
+---

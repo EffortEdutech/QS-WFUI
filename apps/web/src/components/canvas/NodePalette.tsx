@@ -204,14 +204,17 @@ function PackSection({ packId, packName, packColor, packIconName, nodes, onDragS
 interface NodePaletteProps {
   /** Called when a bulk mode action is triggered on a pack group header. */
   onBulkMode?: (nodeTypes: string[], mode: SkillMode) => void;
+  /** Optional Explorer-owned search string. When provided, local search input is hidden. */
+  searchOverride?: string;
 }
 
-export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
+export default function NodePalette({ onBulkMode, searchOverride }: NodePaletteProps = {}) {
   const [nodes, setNodes]   = useState<RegisteredNode[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectiveSearch = searchOverride ?? search;
 
   // Load all nodes on mount
   useEffect(() => {
@@ -226,7 +229,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!search.trim()) {
+    if (!effectiveSearch.trim()) {
       // Reset to full list (already loaded)
       debounceRef.current = null;
       apiClient
@@ -238,7 +241,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
     debounceRef.current = setTimeout(() => {
       setLoading(true);
       apiClient
-        .get<RegisteredNode[]>(`/nodes/search?q=${encodeURIComponent(search.trim())}`)
+        .get<RegisteredNode[]>(`/nodes/search?q=${encodeURIComponent(effectiveSearch.trim())}`)
         .then((res) => setNodes(res.data ?? []))
         .catch(() => setError('Search failed'))
         .finally(() => setLoading(false));
@@ -247,7 +250,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search]);
+  }, [effectiveSearch]);
 
   const filtered = nodes;
 
@@ -284,6 +287,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
           Skill Library
         </p>
+        {searchOverride === undefined && (
         <input
           type="text"
           value={search}
@@ -291,6 +295,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
           placeholder="Search skills…"
           className="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
         />
+        )}
       </div>
 
       {/* Pack-grouped skill list */}
@@ -303,7 +308,7 @@ export default function NodePalette({ onBulkMode }: NodePaletteProps = {}) {
         )}
         {!loading && !error && packs.length === 0 && (
           <p className="text-xs text-gray-400 text-center py-4">
-            {search.trim() ? 'No skills match your search' : 'No skills available'}
+            {effectiveSearch.trim() ? 'No skills match your search' : 'No skills available'}
           </p>
         )}
 

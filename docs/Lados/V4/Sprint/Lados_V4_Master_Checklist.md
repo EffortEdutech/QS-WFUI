@@ -626,15 +626,27 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 
 ### Phase 15 — Resource Bindings
 
-- [ ] Not started. Planned after Sprint 14A/14B canvas upgrade path.
+- [x] `resource_bindings` migration added as `supabase/migrations/0049_resource_bindings.sql` with RLS, indexes, and self-contained `public.set_updated_at()` trigger helper.
+- [x] `ResourceBindingsModule` added to API with authenticated list/upsert/delete routes under `/api/v1/workflows/:workflowId/bindings`.
+- [x] Shared `ResourceBinding` / `ResolvedBindings` types added to `@lados/shared-types`.
+- [x] Execution runtime resolves bindings for manual runs, inline group diagnostics, and event-triggered runs before creating/executing snapshots.
+- [x] `execution.bindings_resolved` audit event written when a run resolves bindings.
+- [x] `ResourceBindingPanel` added to the web inspector, with Config / Bindings tabs for resource-picker fields.
+- [x] Binding remove flow supported by `apiClient` handling HTTP 204 responses.
+- [x] Phase 15 smoke script added at `docs/Lados/V4/Tests/test_phase15_resource_bindings.ps1`.
+- [x] `corepack pnpm typecheck` passes on 2026-07-01.
+- [ ] Apply `0049_resource_bindings.sql` in Supabase after the trigger helper fix.
+- [ ] Run authenticated GET/PUT/DELETE smoke test with a real workflow/node/resource.
+- [ ] Browser verify Bindings tab against live resources and remove/rebind behavior.
+- [ ] Trigger a workflow with a real binding and verify merged node config plus audit log entry.
 
 ### Current Handover — 2026-06-30
 
-**Done:** Phase 14 code implementation, Sprint 14A implementation pass, and Sprint 14B Run Group implementation pass with typecheck.
+**Done:** Phase 14 code implementation, Sprint 14A/14B canvas group implementation, and Phase 15 Resource Bindings code path through API/runtime/web inspector with typecheck.
 
-**Next:** Apply the Sprint 14B Supabase migration, then browser verify Phase 14 typed-port behavior, Sprint 14A group behavior, and Sprint 14B selective group execution.
+**Next:** Apply `0048_group_run_logs.sql` and `0049_resource_bindings.sql` in Supabase, then browser verify group execution behavior and Phase 15 binding CRUD/run resolution.
 
-**Ad-hoc:** Extract inline `SkillNode` later if canvas complexity continues growing; add a settings modal for group `toggleRestriction`; upgrade Run Group input injection to per-port synthetic upstream outputs when the runner supports it.
+**Ad-hoc:** Extract inline `SkillNode` later if canvas complexity continues growing; add a settings modal for group `toggleRestriction`; upgrade Run Group input injection to per-port synthetic upstream outputs when the runner supports it; consider exposing binding resource names in run logs.
 
 ---
 
@@ -672,8 +684,146 @@ Each **Phase** is a gate — complete and verify everything in a phase before mo
 - [x] Fixed React Flow responsiveness loop by ignoring selection-only node changes for group/bypasser geometry persistence.
 - [x] Added group deletion from group header, context menu, and Delete/Backspace without deleting member skills.
 - [x] Made Group Mode Switcher movable via its header drag handle; internal `fastGroupBypasser` schema name retained for compatibility.
-- [ ] Browser verify Skill Groups + Fast Group Bypasser on the canvas.
+- [x] Browser UI/UX verify Skill Groups + Group Mode Switcher on the canvas.
+- [x] Fixed first-add/first-move stability so the Group Mode Switcher is inserted into React Flow immediately and keeps its live position during sync.
+- [x] Added Lados favicon assets and metadata to resolve `/favicon.ico` 404.
+- [x] Replaced app-shell sidebar `L` mark with Lados icon and updated browser title metadata.
+- [x] Added transparent sidebar Lados icon asset so the app-shell mark follows the active theme/background.
+- [x] Memoized React Flow `nodeTypes` prop and reduced Group Mode Switcher drag persistence to final drag events.
+- [x] Excluded Group Mode Switcher from skill-node drag-to-group membership logic.
+- [ ] Verify group mute / bypass during workflow execution with a functional workflow.
 
 **Secondary diagnostic path:** the earlier Run Group implementation can remain for developer testing, but it is not the primary rgthree-inspired UX.
+
+---
+## Current Sprint P16-P18 - Frontend State Engine First
+
+> Active source plan: `docs/Lados/V4/Sprint/Lados_V4_Sprint_P16-P18_Explorer_State_Marketplace.md`
+
+### Phase 17 - Frontend State Engine
+
+- [x] Workflow page now uses `WorkflowStore`, `CanvasStore`, `ExecutionStore`, and persisted `UIStore` for workflow, execution, sidebar/panel, and canvas validation state.
+- [x] `WorkflowCanvas.tsx` syncs ReactFlow nodes, edges, selected node id, read-only state, and validation state into `CanvasStore`.
+- [x] `ExecutionLogPanel.tsx` reads run summary, node logs, and loading state from `ExecutionStore`.
+- [x] `useExecutionRunMonitor.ts` extracts authenticated run polling and terminal log fetch into a reusable hook.
+- [x] `corepack pnpm --filter web typecheck` passes on 2026-07-01.
+- [x] `corepack pnpm --filter @lados/shared-types typecheck` passes on 2026-07-01.
+- [ ] Browser verify workflow load, edit/save, execution log panel, persisted sidebar tab/collapse state, and run monitoring against a live API session.
+- [ ] True SSE and live per-node canvas colouring deferred until stream auth and node-status event emission are ready.
+- [ ] Full monorepo `corepack pnpm typecheck` retry pending after a transient Node native assertion in the first run.
+
+### Current Handover - 2026-07-01
+
+**Done:** Phase 17 Frontend State Engine code path is implemented and focused typechecks pass.
+
+**Next:** Browser verify Phase 17 against a live API session, then proceed with Phase 16 Full Explorer using the new stores as the base.
+
+**Ad-hoc:** Resolve true SSE by adding browser-safe stream auth or a short-lived stream token; emit per-node status events from the backend before moving `SkillNode` live colouring fully into `ExecutionStore`.
+
+---
+## Current Sprint P16-P18 - Phase 16 Full Explorer
+
+> Active source plan: `docs/Lados/V4/Sprint/Lados_V4_Sprint_P16-P18_Explorer_State_Marketplace.md`
+
+### Phase 16 - Full Explorer
+
+- [x] `ExplorerShell.tsx` replaces the workflow page raw sidebar.
+- [x] Global search, active tab, collapse state, and `Cmd/Ctrl + E` shortcut implemented.
+- [x] Explorer state mirrors Phase 16 localStorage keys: `lados.explorer.activeTab` and `lados.explorer.collapsed`.
+- [x] Resources tab implemented with live `/resources` data, project filter, type filter, search, click-through, and drag metadata.
+- [x] Templates tab implemented with live `/workflow-templates`, read-only preview modal, and Apply-to-canvas flow.
+- [x] Minimal `GET /workflow-templates/:id` API added for template definition fetch.
+- [x] Packs tab implemented with live `/packs`, status badges, expansion, and pack node loading.
+- [x] Versions tab implemented inline with save snapshot and restore.
+- [x] Existing Nodes, Files, Data Packs, and Runs panels preserved inside Explorer.
+- [x] `corepack pnpm --filter web typecheck` passed on 2026-07-02.
+- [x] `corepack pnpm --filter api typecheck` passed on 2026-07-02.
+- [x] Full `corepack pnpm typecheck` passed on 2026-07-02.
+- [ ] Browser verify Explorer tabs, search, persistence, drag-to-canvas, template preview/apply, pack expansion, and inline version restore.
+
+### Current Handover - 2026-07-02
+
+**Done:** Phase 16 Full Explorer code path is implemented and all TypeScript checks pass.
+
+**Next:** Browser verify Phase 16 against a live API session, then proceed to Phase 18 External Marketplace.
+
+**Ad-hoc:** Template save-as-template remains out of scope because the existing backend currently supports list/detail/instantiate, not template creation. Resource drag metadata is ready for follow-up canvas drop/binding behavior.
+
+---
+
+## Current Sprint P16-P18 - Phase 18 External Marketplace
+
+> Active source plan: `docs/Lados/V4/Sprint/Lados_V4_Sprint_P16-P18_Explorer_State_Marketplace.md`
+
+### Phase 18 - External Marketplace
+
+- [x] `0050_registry_packs.sql` created for hosted registry listings.
+- [x] Private Supabase Storage bucket definition added: `lados-pack-bundles`.
+- [x] Pack bundle format documented in `docs/Lados/V4/Pack_Bundle_Format.md`.
+- [x] `POST /registry/packs/submit` implemented for `.ladosPack` upload, manifest validation, SHA-256 checksum, storage upload, and pending-review listing.
+- [x] `GET /registry/packs` implemented with search/filter/pagination.
+- [x] `GET /registry/packs/:packId` and `GET /registry/packs/:packId/:version` implemented.
+- [x] `PATCH /registry/packs/:listingId/verify` implemented with `registry.verify` permission.
+- [x] `POST /marketplace/registry/:listingId/install` implemented for verified registry listing install.
+- [x] `/marketplace` rebuilt with Installed, Browse Registry, and Publish Pack tabs.
+- [x] Registry preview modal shows nodes from `manifest_json`.
+- [x] Installed-state detection disables duplicate registry install button.
+- [x] Phase 18 smoke test scaffold added at `docs/Lados/V4/Tests/test_phase18_registry.ps1`.
+- [x] Full `corepack pnpm typecheck` passed on 2026-07-02.
+- [ ] Apply migration `0050_registry_packs.sql` to Supabase.
+- [ ] Browser verify Browse Registry and Publish Pack tabs against a live API session.
+- [ ] Smoke test submit/verify/install using a real `.ladosPack` bundle.
+- [ ] `lados-pack publish` CLI deferred.
+
+### Current Handover - 2026-07-02
+
+**Done:** Phase 18 core marketplace registry path is code-complete: registry schema, submit/browse/verify/install API, and three-tab Marketplace UI.
+
+**Next:** Apply migration 0050, submit one test bundle, verify it, install it from Browse Registry, and confirm installed nodes appear in the node registry.
+
+**Ad-hoc:** Dynamic execution of uploaded JavaScript executors is intentionally deferred until Lados has a sandboxed external runtime/verifier. Current install registers manifest-declared pack and node metadata only.
+
+---
+
+## Next Track - P18P to P20 Productization
+
+> Active source plan: `docs/Lados/V4/Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md`
+>
+> Active checklist: `docs/Lados/V4/Sprint/Lados_V4_P18P-P20_Master_Checklist.md`
+>
+> Technical paper: `docs/Lados/V4/Design/Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md`
+
+### Phase 18P - Marketplace Polish
+
+- [x] Apply and verify migration `0050_registry_packs.sql`.
+- [x] Restore Marketplace `Data Packs` tab.
+- [x] Keep Marketplace tabs: Installed Packs, Browse Registry, Data Packs, Publish Pack.
+- [x] Create and submit one demo `.ladosPack`.
+- [x] Verify registry publish, review, install, and installed-node visibility.
+- [x] Confirm Phase 18 closes as manifest-only external registry install.
+
+### Phase 19 - Data Pack Engine
+
+- [x] Build Data Pack schema, API, UI, and item search.
+- [x] Add Marketplace Data Packs live browse/install.
+- [x] Add Explorer Data Packs live panel.
+- [x] Add `data_pack_item` PropertyPanel field support.
+- [x] Seed official QS/contractor Data Packs with provenance.
+
+### Phase 20 - Professional Lados Pack Bundles
+
+- [ ] Audit and clean official node manifests.
+- [ ] Redesign high-input nodes around Workspace Resources, Resource Bindings, inspector config, and Data Pack references.
+- [ ] Produce official bundle standards and demo workflows.
+- [ ] Browser verify official node readability.
+- [ ] Run product readiness verification playbook.
+
+### Current Handover - 2026-07-02
+
+**Done:** Phase 18P is browser-verified complete. Phase 19 Data Pack Engine vertical slice is implemented: migration 0051, Data Pack API, Marketplace live Data Packs, Explorer live search, PropertyPanel `data_pack_item`, official seed packs, and smoke test script.
+
+**Next:** Apply migration 0051, run `test_phase19_data_packs.ps1`, browser-verify Marketplace Data Packs and Explorer Data Packs, then decide whether to add runtime usage logging before Phase 20.
+
+**Ad-hoc:** `lados-pack publish` CLI and dynamic uploaded executor runtime remain deferred. Runtime logging of Data Pack item references is still outstanding.
 
 ---
