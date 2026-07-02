@@ -13,9 +13,9 @@ Search is shifting from "user types query, search engine returns links" to "user
 
 In that world, a conventional supplier website is no longer enough. The winning asset is not only a web page. The winning asset is a structured, trusted, continuously updated knowledge catalogue that AI systems can understand, cite, filter, compare, and act on.
 
-Lados Data Packs become that catalogue layer.
+Lados Knowledge Packs become that catalogue layer.
 
-Lados Marketplace should therefore evolve from a simple pack store into a governed knowledge marketplace where suppliers, sellers, manufacturers, consultants, and service providers publish structured Data Packs that can be discovered by:
+Lados Marketplace should therefore evolve from a simple pack store into a governed knowledge marketplace where suppliers, sellers, manufacturers, consultants, and service providers publish structured Knowledge Packs that can be discovered by:
 
 - Lados workflow agents
 - Lados marketplace search
@@ -35,7 +35,7 @@ The business pattern is close to an Alibaba/AliExpress-style discovery marketpla
 
 | Old marketplace model | Lados AI knowledge catalogue model |
 |---|---|
-| Seller uploads product page | Seller publishes structured Data Pack |
+| Seller uploads product page | Seller publishes structured Knowledge Pack |
 | User browses pages manually | AI agent searches, filters, ranks, and explains |
 | SEO targets human search engine result pages | Knowledge catalogue targets AI retrieval and workflow use |
 | Product data is mostly text/images | Product data is schema-rich, source-aware, versioned, and comparable |
@@ -45,25 +45,25 @@ This means suppliers can subscribe to Lados not only for visibility, but for mac
 
 ---
 
-## 3. Data Pack as Marketplace Unit
+## 3. Knowledge Pack as Marketplace Unit
 
-A Data Pack is a non-executable, versioned knowledge product.
+A Knowledge Pack is a non-executable, versioned knowledge product.
 
 For Phase 20, the important marketplace unit is not only `.ladosPack`. It is:
 
 ```text
 Supplier / Seller
   -> Marketplace Profile
-  -> Data Pack Listing
-  -> Data Pack Version
+  -> Knowledge Pack Listing
+  -> Knowledge Pack Version
   -> Collections
   -> Items
   -> Evidence, pricing, compliance, availability, region, source metadata
 ```
 
-Example supplier Data Packs:
+Example supplier Knowledge Packs:
 
-| Supplier type | Data Pack examples |
+| Supplier type | Knowledge Pack examples |
 |---|---|
 | Material supplier | Concrete grades, steel bars, waterproofing systems, delivery zones |
 | Plant supplier | Excavators, cranes, rental rates, capacity, location, availability |
@@ -81,19 +81,21 @@ The marketplace must keep these names distinct:
 | Name | Meaning | Executes code? |
 |---|---|---|
 | Capability Pack | Adds nodes, tools, workflow capabilities, manifests | Not from uploaded runtime in current phase |
-| Data Pack | Adds structured knowledge, catalogues, rates, rules, product data | No |
+| Knowledge Pack | Adds structured knowledge, catalogues, rates, rules, product data | No |
 | Workspace Resource | Project-owned file/data uploaded or created inside a workspace | No |
 | Resource Binding | Mapping between workflow/node config and project resources | No |
 | Supplier Profile | Commercial identity that owns or publishes catalogue listings | No |
-| Marketplace Listing | Public/commercial wrapper around a pack or Data Pack | No |
+| Marketplace Listing | Public/commercial wrapper around a Capability Pack or Knowledge Pack | No |
 
 This naming is important because Lados must not confuse executable capability with supplier knowledge.
+
+The old term **Data Pack** remains a legacy technical implementation name from Phase 19. Current database tables, API DTOs, tests, and logs may still use `data_pack_*` identifiers until a deliberate compatibility migration renames or aliases them.
 
 ---
 
 ## 5. AI Search Readiness Requirements
 
-Every marketplace Data Pack should be designed for AI retrieval.
+Every marketplace Knowledge Pack should be designed for AI retrieval.
 
 ### 5.1 Required Listing Metadata
 
@@ -153,24 +155,24 @@ The marketplace should support:
 ### 6.1 Supplier Publishes Catalogue
 
 1. Supplier creates marketplace profile.
-2. Supplier uploads or edits a Data Pack.
+2. Supplier uploads or edits a Knowledge Pack.
 3. Lados validates schema and required fields.
 4. Lados marks missing evidence, stale dates, or unclear assumptions.
 5. Supplier submits for verification.
 6. Admin verifies listing.
-7. Data Pack becomes searchable and installable.
+7. Knowledge Pack becomes searchable and installable.
 
 ### 6.2 Buyer Searches Through AI
 
 1. User asks: "Find waterproofing suppliers for basement works in Klang Valley."
-2. Lados searches installed and marketplace Data Packs.
+2. Lados searches installed and marketplace Knowledge Packs.
 3. Lados returns suppliers, products, assumptions, and source evidence.
 4. User selects items into workflow or RFQ.
-5. Workflow logs Data Pack provenance.
+5. Workflow logs Knowledge Pack provenance.
 
 ### 6.3 Workflow Consumes Supplier Knowledge
 
-1. Node config references Data Pack items.
+1. Node config references Knowledge Pack items.
 2. Runtime resolves item metadata.
 3. Execution uses item values as advisory/contextual data.
 4. Execution log records source, supplier, version, and assumptions.
@@ -184,14 +186,14 @@ Phase 20 documentation should define these future screens before implementation:
 
 | Surface | Purpose |
 |---|---|
-| Marketplace Home | Search-first entry for Capability Packs and Data Packs |
-| Data Pack Browse | Search supplier and official catalogues |
+| Marketplace Home | Search-first entry for Capability Packs and Knowledge Packs |
+| Knowledge Pack Browse | Search supplier and official catalogues |
 | Supplier Profile | Commercial identity, verification, contact/RFQ route |
-| Data Pack Detail | Versioned collections, provenance, install/subscribe |
+| Knowledge Pack Detail | Versioned collections, provenance, install/subscribe |
 | Item Detail | Source-aware product/rate/rule/evidence record |
-| Publish Data Pack | Supplier upload/editor flow |
+| Publish Knowledge Pack | Supplier upload/editor flow |
 | Review Queue | Admin verification of supplier catalogues |
-| Installed Knowledge | Organization-installed Data Packs |
+| Installed Knowledge | Organization-installed Knowledge Packs |
 | AI Search Preview | Shows how Lados agent will interpret the catalogue |
 
 ---
@@ -203,7 +205,7 @@ Potential supplier/seller subscription tiers:
 | Tier | Capability |
 |---|---|
 | Free Listing | Supplier profile and limited catalogue visibility |
-| Catalogue Publisher | Publishes verified Data Packs |
+| Catalogue Publisher | Publishes verified Knowledge Packs |
 | Featured Supplier | Boosted marketplace ranking and richer profile |
 | Workflow Integrated Supplier | Items can be inserted into RFQ/procurement workflows |
 | Enterprise Catalogue API | Automated catalogue updates through API/import |
@@ -228,7 +230,7 @@ Supplier-side value:
 
 ## 9. Governance and Trust
 
-Data Pack Marketplace must not become a blind advertising surface.
+Knowledge Pack Marketplace must not become a blind advertising surface.
 
 Rules:
 
@@ -236,15 +238,15 @@ Rules:
 - Official/reference data is labelled official/reference.
 - Rates and prices are advisory until confirmed.
 - Every commercial item needs source/date/assumptions.
-- AI answers must cite Data Pack provenance.
-- Workflows must log Data Pack versions used.
+- AI answers must cite Knowledge Pack provenance.
+- Workflows must log Knowledge Pack versions used.
 - Verification status must be visible.
 - Expired/stale items must be marked.
 
 For QS and construction workflows, Lados must keep the professional boundary:
 
 ```text
-Data Pack suggests.
+Knowledge Pack suggests.
 Workflow applies.
 Human approves.
 Execution log proves provenance.
@@ -257,7 +259,7 @@ Execution log proves provenance.
 Phase 20 is documentation-first and should produce:
 
 1. Marketplace knowledge-catalogue strategy.
-2. Data Pack publisher specification.
+2. Knowledge Pack publisher specification.
 3. Supplier profile and listing specification.
 4. AI search and retrieval requirements.
 5. Marketplace screen specification.
@@ -274,7 +276,7 @@ After Phase 20 documentation is accepted, implementation can proceed in smaller 
 | Future phase | Focus |
 |---|---|
 | 21 | Supplier profile and publisher account model |
-| 22 | Data Pack publish/upload/review flow |
+| 22 | Knowledge Pack publish/upload/review flow |
 | 23 | AI catalogue search and retrieval ranking |
 | 24 | RFQ/procurement workflow integration |
 | 25 | Supplier subscription and marketplace analytics |

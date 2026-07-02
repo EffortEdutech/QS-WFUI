@@ -103,6 +103,8 @@ Methodology: phase-gate (consistent with V4). Six sprints, PD-1 → PD-6. Each g
 - [ ] Move OpenAI/service-role keys to Supabase Vault or platform secret store (G14).
 - [ ] **Gate:** advisors re-run — zero WARN security lints; throttling verified by test.
 
+> **Known issue (logged during PD-1, 2026-07-02):** existing seed workflows in the live DB were built before their nodes existed — i/o port wiring is invalid and they cannot run. Do NOT use them for verification. PD-4 demo workflows replace them; delete the broken seed workflows as part of PD-4 cleanup. 19C runtime verification rides on the first PD-4 demo workflow.
+
 ### Sprint PD-4 — Product Completion (P19 close + P20)
 
 *This is the existing roadmap work, unchanged — PD sprints wrap around it.*

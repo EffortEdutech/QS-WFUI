@@ -134,8 +134,8 @@
 - [x] Show Data Pack provenance in `ExecutionLogPanel`.
 - [x] Add Phase 19C smoke test script.
 - [x] Apply migration 0052. *(verified 2026-07-02 — `execution_logs.data_pack_usages` column exists in live DB)*
-- [ ] Run Phase 19C smoke test against a workflow run with a Data Pack item config. *(deferred to PD-1 verification sweep)*
-- [ ] Browser verify Execution Log provenance block. *(deferred to PD-1 verification sweep)*
+- [ ] Run Phase 19C smoke test against a workflow run with a Data Pack item config. *(re-deferred to PD-4 — existing seed workflows have invalid i/o wiring (nodes created after workflows); test will run against the first PD-4 demo workflow. PD-2 unit test covers resolveRuntimeUsagesForDefinition in the meantime.)*
+- [ ] Browser verify Execution Log provenance block. *(re-deferred to PD-4 — same reason)*
 
 ---
 
@@ -144,30 +144,34 @@
 ### Capability Pack Planning First
 
 - [x] Create Capability Pack planning and node taxonomy paper.
+- [x] Document current packs/nodes as prototype assets, not binding target architecture.
 - [x] Define pack layering model.
-- [x] Define official Capability Pack families.
+- [x] Define candidate target capability domains.
 - [x] Define node indexing model.
 - [x] Define canonical capability registry model.
 - [x] Define node overlap-control rules.
 - [x] Define workflow template ownership model.
 - [x] Define Capability Pack manifest extension direction.
-- [ ] Review official pack boundaries against current packs.
+- [x] Define prototype reset policy: keep, rename, merge, split, deprecate, remove.
+- [ ] Draft new target Capability Pack catalogue.
+- [ ] Classify current prototype packs/nodes against the target catalogue.
 - [ ] Create first canonical capability registry table/document.
-- [ ] Create official workflow template index.
+- [ ] Create target workflow template index.
 
 ### Strategy Documents
 
 - [x] Create marketplace knowledge-catalogue strategy paper.
 - [x] Create Phase 20 documentation sprint plan.
-- [x] Reframe Marketplace around supplier/seller Data Packs.
+- [x] Create naming lock for Capability Packs and Knowledge Packs.
+- [x] Reframe Marketplace around supplier/seller Knowledge Packs.
 - [x] Document AI conversational search thesis.
 - [x] Document Lados as supplier/seller knowledge catalogue agent.
 
-### Supplier Data Pack Specification
+### Supplier Knowledge Pack Specification
 
 - [ ] Define supplier profile fields.
-- [ ] Define supplier Data Pack listing fields.
-- [ ] Define Data Pack item metadata fields.
+- [ ] Define supplier Knowledge Pack listing fields.
+- [ ] Define Knowledge Pack item metadata fields.
 - [ ] Define product/service/rate/evidence catalogue examples.
 - [ ] Define official vs supplier-provided data labels.
 
@@ -182,11 +186,11 @@
 ### Marketplace Screens
 
 - [ ] Marketplace Home.
-- [ ] Data Pack Browse.
+- [ ] Knowledge Pack Browse.
 - [ ] Supplier Profile.
-- [ ] Data Pack Detail.
+- [ ] Knowledge Pack Detail.
 - [ ] Item Detail.
-- [ ] Publish Data Pack.
+- [ ] Publish Knowledge Pack.
 - [ ] Review Queue.
 - [ ] Installed Knowledge.
 - [ ] AI Search Preview.
@@ -264,9 +268,9 @@
 
 Lados V4 can be presented as a full platform only when:
 
-- [ ] Marketplace has Capability Packs and Data Packs.
+- [ ] Marketplace has Capability Packs and Knowledge Packs.
 - [ ] At least one external `.ladosPack` publish/install path is verified.
-- [ ] At least two official Data Packs are browsable.
+- [ ] At least two official Knowledge Packs are browsable.
 - [ ] At least three official workflows are demo-ready.
 - [ ] Official nodes are visually clean and professionally named.
 - [ ] QS/commercial outputs show sources, assumptions, and human approval boundaries.
@@ -334,19 +338,19 @@ Lados V4 can be presented as a full platform only when:
 
 ### 2026-07-02 - Phase 20 documentation kickoff
 
-**Done:** Reframed Phase 20 as Marketplace Knowledge Catalogue documentation. Created the strategy paper and active documentation sprint plan for supplier/seller Data Packs, AI conversational search, governance, and marketplace business model.
+**Done:** Reframed Phase 20 as Marketplace Knowledge Catalogue documentation. Created the strategy paper and active documentation sprint plan for supplier/seller Knowledge Packs, AI conversational search, governance, and marketplace business model.
 
-**Next:** Complete Capability Pack boundary review, canonical capability registry, workflow template index, supplier Data Pack specification, AI retrieval requirements, screen specification, governance checklist, business model notes, and Phase 21+ backlog.
+**Next:** Draft the new target Capability Pack catalogue, classify current prototype packs/nodes for retirement or migration, complete the canonical capability registry, workflow template index, supplier Knowledge Pack specification, AI retrieval requirements, screen specification, governance checklist, business model notes, and Phase 21+ backlog.
 
 **Ad-hoc:** Phase 19C runtime provenance workflow test remains deferred. Professional Lados Pack Bundles are deferred to Phase 20B after the marketplace knowledge-catalogue strategy is accepted.
 
 ### 2026-07-02 - Phase 20A Capability Pack planning update
 
-**Done:** Added Phase 20A Capability Pack planning before Marketplace Data Packs. Created the Capability Pack planning and node taxonomy paper covering pack layering, official pack families, node indexing, canonical capability keys, overlap control, template ownership, UI discovery, manifest extensions, and governance checklist.
+**Done:** Added Phase 20A Capability Pack planning before Marketplace Knowledge Packs. Created the Capability Pack planning and node taxonomy paper covering greenfield target pack planning, prototype reset policy, pack layering, candidate capability domains, node indexing, canonical capability keys, overlap control, template ownership, UI discovery, manifest extensions, and governance checklist.
 
-**Next:** Review current official packs against the proposed boundaries, then create the canonical capability registry and workflow template index.
+**Next:** Draft the new target Capability Pack catalogue, classify current prototype packs/nodes as keep/rename/merge/split/deprecate/remove, then create the canonical capability registry and workflow template index.
 
-**Ad-hoc:** Data Pack marketplace documentation should proceed only after Capability Pack ownership and node/template indexing are agreed.
+**Ad-hoc:** Current test-era packs are not the target architecture. Knowledge Pack marketplace documentation should proceed only after the new Capability Pack ownership and node/template indexing are agreed.
 
 **Verification:** Full `corepack pnpm typecheck` passed. Full `corepack pnpm build` passed after removing one unused type import from the workflow page. Existing non-blocking ESLint warnings remain around hook dependencies and image optimization.
 
@@ -363,3 +367,11 @@ Lados V4 can be presented as a full platform only when:
 **Next:** Apply migration 0052, run a workflow with a `data_pack_item` config, run the Phase 19C smoke test using that run id, and browser-verify the provenance block.
 
 **Ad-hoc:** This closes the Phase 19C implementation; production audit trail hardening can later add dedicated analytics/reporting over the stored JSONB.
+
+### 2026-07-02 - Phase 20 naming lock
+
+**Done:** Locked the product language for Phase 20: Capability Pack means workflow capabilities, nodes, templates, and action grammar; Knowledge Pack means governed knowledge catalogues, supplier listings, standards references, SOPs, compliance rules, technical guidelines, rates, and evidence rules. Updated the Phase 20 strategy paper, active documentation sprint plan, Capability Pack planning paper, productization sprint plan, master checklist, and V4 README.
+
+**Next:** Continue with the new target Capability Pack catalogue, canonical capability registry, workflow template index, then the Supplier Knowledge Pack specification and marketplace screen specification.
+
+**Ad-hoc:** Existing `data_pack_*` database/API/test identifiers remain legacy Phase 19 technical names until a deliberate compatibility migration aliases or renames them.

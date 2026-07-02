@@ -9,9 +9,9 @@
 
 ## 1. Phase 20 Objective
 
-Document the future Lados Marketplace as an AI-ready knowledge catalogue platform, starting with professional Capability Pack planning before Marketplace Data Pack expansion.
+Document the future Lados Marketplace as an AI-ready knowledge catalogue platform, starting with a greenfield Capability Pack plan before Marketplace Knowledge Pack expansion.
 
-Phase 20 should not start by coding more marketplace UI. It should first define the Capability Pack taxonomy and node governance model, then define the business, product, data, screen, trust, and implementation model for supplier/seller Data Packs.
+Phase 20 should not start by coding more marketplace UI. It should first define the new target Capability Pack taxonomy and node governance model, then define the business, product, knowledge, screen, trust, and implementation model for supplier/seller Knowledge Packs.
 
 The central decision:
 
@@ -23,7 +23,7 @@ The central decision:
 
 AI conversational search will reduce the value of traditional website-only strategies. A supplier page may still exist, but AI agents need structured, retrievable, source-aware knowledge.
 
-Capability Packs are the operating grammar of Lados. Data Packs become the carrier of marketplace knowledge.
+Capability Packs are the operating grammar of Lados. Knowledge Packs become the carrier of marketplace knowledge.
 
 Phase 20 prepares Lados to serve:
 
@@ -43,11 +43,12 @@ Phase 20 prepares Lados to serve:
 ### In Scope
 
 - Capability Pack planning and node taxonomy
+- current prototype pack/node retirement plan
 - canonical node ownership and overlap control
 - workflow template ownership and indexing
 - Marketplace strategy
-- Supplier Data Pack model
-- Data Pack publisher requirements
+- Supplier Knowledge Pack model
+- Knowledge Pack publisher requirements
 - AI search and retrieval requirements
 - marketplace information architecture
 - supplier profile model
@@ -70,11 +71,12 @@ Phase 20 prepares Lados to serve:
 
 | Decision | Position |
 |---|---|
-| Phase 20 ordering | Capability Packs first, Marketplace Data Packs second |
+| Phase 20 ordering | New target Capability Packs first, Marketplace Knowledge Packs second |
 | Capability Pack role | Actions, nodes, templates, workflow operating grammar |
+| Current packs | Prototype/test assets, not binding target architecture |
 | Marketplace direction | AI-ready knowledge catalogue, not only app store |
-| Supplier unit | Supplier Profile plus Data Pack Listings |
-| Publishable product | Data Pack version with collections and items |
+| Supplier unit | Supplier Profile plus Knowledge Pack Listings |
+| Publishable product | Knowledge Pack version with collections and items |
 | Runtime behavior | Data is non-executable and source-aware |
 | AI behavior | Search, summarize, cite, compare, and hand off to workflow |
 | Trust model | Verification status, source metadata, stale-data warnings |
@@ -83,6 +85,25 @@ Phase 20 prepares Lados to serve:
 ---
 
 ## 5. Documentation Work Packages
+
+### P20-000 - Naming Lock
+
+Lock the product terms before further marketplace planning:
+
+- Capability Pack: workflow capabilities, nodes, templates, and action grammar
+- Knowledge Pack: governed knowledge catalogues, supplier listings, standards references, SOPs, compliance rules, technical guidelines, rates, and evidence rules
+- Data Pack: legacy Phase 19 technical implementation term for existing database/API/test identifiers
+
+Output:
+
+- `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`
+
+Acceptance:
+
+- [x] Capability Pack term is locked.
+- [x] Knowledge Pack term is locked.
+- [x] Data Pack is documented as legacy technical terminology.
+- [x] Active Phase 20 docs use Knowledge Pack for product language.
 
 ### P20-001 - Capability Pack Planning and Node Taxonomy
 
@@ -94,6 +115,7 @@ Create the Capability Pack planning paper explaining:
 - how canonical node capability keys prevent overlap
 - how workflow templates are owned and indexed
 - how users and AI find the right node among hundreds or thousands
+- how current prototype packs/nodes are kept, renamed, merged, deprecated, or removed
 
 Output:
 
@@ -106,6 +128,7 @@ Acceptance:
 - [x] Overlap-control rules are documented.
 - [x] Workflow template ownership is documented.
 - [x] Manifest extension direction is documented.
+- [x] Prototype reset policy is documented.
 
 ### P20-002 - Marketplace Strategy Paper
 
@@ -113,7 +136,7 @@ Create the strategic paper explaining:
 
 - why AI search changes supplier websites
 - why structured catalogues matter
-- why Data Packs are the Lados catalogue unit
+- why Knowledge Packs are the Lados catalogue unit
 - how Lados can become the agentic catalogue layer for suppliers/sellers
 
 Output:
@@ -124,15 +147,15 @@ Acceptance:
 
 - [x] Explains AI-search business shift.
 - [x] Defines Lados as supplier/seller knowledge catalogue agent.
-- [x] Links Data Packs to marketplace business model.
+- [x] Links Knowledge Packs to marketplace business model.
 
-### P20-003 - Supplier Data Pack Specification
+### P20-003 - Supplier Knowledge Pack Specification
 
 Define:
 
 - supplier profile fields
-- Data Pack listing fields
-- Data Pack item fields
+- Knowledge Pack listing fields
+- Knowledge Pack item fields
 - product/service/rate/evidence catalogue structures
 - source, assumption, and verification metadata
 
@@ -165,11 +188,11 @@ Acceptance:
 Define screens:
 
 - Marketplace Home
-- Data Pack Browse
+- Knowledge Pack Browse
 - Supplier Profile
-- Data Pack Detail
+- Knowledge Pack Detail
 - Item Detail
-- Publish Data Pack
+- Publish Knowledge Pack
 - Review Queue
 - Installed Knowledge
 - AI Search Preview
@@ -238,26 +261,28 @@ Capability Pack
   -> Nodes
   -> Workflow templates
   -> Required lower-layer packs
-  -> Suggested/required Data Packs
+  -> Suggested/required Knowledge Packs
 
 Supplier Profile
-  -> Data Pack Listing
-    -> Data Pack Version
+  -> Knowledge Pack Listing
+    -> Knowledge Pack Version
       -> Collections
         -> Items
           -> Source / Evidence / Region / Unit / Availability
 
 Lados AI Search
-  -> reads marketplace and installed Data Packs
+  -> reads marketplace and installed Knowledge Packs
   -> ranks by relevance, region, freshness, verification, workflow fit
-  -> cites Data Pack provenance
+  -> cites Knowledge Pack provenance
   -> inserts selected item references into workflow nodes
 
 Workflow Runtime
-  -> resolves Data Pack item ids
+  -> resolves Knowledge Pack item ids
   -> logs data_pack_usages
   -> shows provenance in Execution Log
 ```
+
+Note: `data_pack_usages` is the current Phase 19C technical column name. Product documentation should use **Knowledge Pack provenance** unless referring to existing database/API identifiers.
 
 ---
 
@@ -266,7 +291,7 @@ Workflow Runtime
 - [x] Capability Pack planning paper complete.
 - [x] Node taxonomy and overlap-control model drafted.
 - [x] Marketplace strategy paper complete.
-- [ ] Supplier Data Pack specification complete.
+- [ ] Supplier Knowledge Pack specification complete.
 - [ ] AI retrieval requirements complete.
 - [ ] Marketplace screen specification complete.
 - [ ] Governance checklist complete.
@@ -283,22 +308,25 @@ Workflow Runtime
 
 Done:
 - Reframed Phase 20 as Marketplace Knowledge Catalogue documentation.
-- Added Capability Packs as the first Phase 20 documentation priority before Marketplace Data Packs.
-- Captured AI-search shift and supplier/seller Data Pack marketplace thesis.
+- Added Capability Packs as the first Phase 20 documentation priority before Marketplace Knowledge Packs.
+- Captured AI-search shift and supplier/seller Knowledge Pack marketplace thesis.
 - Created strategy paper and sprint plan.
 - Created Capability Pack planning and node taxonomy paper.
 
 Next:
 - Review and refine Capability Pack taxonomy and official pack boundaries.
-- Expand supplier Data Pack specification after Capability Pack planning is accepted.
+- Draft the new target Capability Pack catalogue without being constrained by current pack families.
+- Classify current prototype packs/nodes as keep, rename, merge, split, deprecate, or remove.
+- Expand supplier Knowledge Pack specification after Capability Pack planning is accepted.
 - Draft Marketplace screen specification.
 - Draft AI retrieval result shape and governance checklist.
 
 Ad-hoc:
-- Phase 19C runtime provenance test remains deferred until a workflow can practically include a Data Pack item.
+- Phase 19C runtime provenance test remains deferred until a workflow can practically include a Knowledge Pack item.
 
 Docs updated:
 - `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`
+- `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`
 - `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
 - `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`
 

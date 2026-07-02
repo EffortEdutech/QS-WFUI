@@ -1,0 +1,20 @@
+# PD-2 — gitleaks configuration for the Lados repo.
+# Extends the default ruleset; adds allowlist entries for known-safe fixtures.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe paths and fixture values"
+paths = [
+  # Test fixtures use synthetic UUIDs and fake tokens
+  '''apps/api/test/.*''',
+  '''apps/api/src/.*\.spec\.ts''',
+  # Documentation may show placeholder keys like <your-key>
+  '''docs/.*\.md''',
+]
+regexes = [
+  # Supabase anon keys are public by design (RLS is the boundary) — but we
+  # still flag service_role. Allow only the documented anon-key variable name.
+  '''NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ[A-Za-z0-9_\-\.]+''',
+]

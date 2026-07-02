@@ -379,11 +379,12 @@ Every QS/commercial Data Pack item needs:
 
 ## Phase 20 - Marketplace Knowledge Catalogue Documentation
 
-> Phase 20 has been reframed after the Data Pack Engine work. The new strategic position is that AI conversational search will reduce the value of website-only supplier discovery. Lados Marketplace should become an AI-ready supplier/seller knowledge catalogue, with Data Packs as the structured catalogue unit.
+> Phase 20 has been reframed after the Data Pack Engine work. The new strategic position is that AI conversational search will reduce the value of website-only supplier discovery. Lados Marketplace should become an AI-ready supplier/seller knowledge catalogue, with Knowledge Packs as the structured catalogue unit.
 
 **Primary Phase 20 documents:**
 
 - `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
+- `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`
 - `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`
 - `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`
 
@@ -393,14 +394,15 @@ Document the Capability Pack architecture first, then the future Lados Marketpla
 
 Lados Marketplace should support:
 
+- greenfield target Capability Packs, not constrained by current test-era pack families
 - well-indexed Capability Packs
 - canonical node ownership and overlap control
 - workflow templates owned by packs/solutions
 - supplier profiles
-- supplier/seller Data Pack listings
+- supplier/seller Knowledge Pack listings
 - structured product, rate, evidence, compliance, and service catalogues
 - AI retrieval and conversational search
-- workflow insertion of Data Pack item references
+- workflow insertion of Knowledge Pack item references
 - provenance logging during workflow execution
 - supplier subscription/business model planning
 
@@ -408,17 +410,18 @@ Lados Marketplace should support:
 
 Search is moving from link lists to AI answers. Suppliers will need machine-readable catalogues that AI agents can search, cite, compare, and apply inside workflows.
 
-Data Packs are the Lados answer to this shift. A supplier website may still exist, but the valuable marketplace asset becomes a versioned, source-aware, workflow-ready Data Pack.
+Knowledge Packs are the Lados answer to this shift. A supplier website may still exist, but the valuable marketplace asset becomes a versioned, source-aware, workflow-ready Knowledge Pack.
 
 ### Phase 20 Documentation Deliverables
 
-- Capability Pack taxonomy and node indexing model.
+- Capability Pack greenfield taxonomy and node indexing model.
+- Prototype/test pack retirement and migration policy.
 - Canonical capability registry and overlap-control rules.
 - Workflow template ownership/indexing model.
 - Marketplace knowledge-catalogue strategy.
 - Supplier profile specification.
-- Supplier Data Pack listing specification.
-- Data Pack item metadata specification.
+- Supplier Knowledge Pack listing specification.
+- Knowledge Pack item metadata specification.
 - AI retrieval and search requirements.
 - Marketplace screen specification.
 - Governance and verification checklist.
@@ -429,12 +432,15 @@ Data Packs are the Lados answer to this shift. A supplier website may still exis
 
 - [x] Capability Pack planning paper created.
 - [x] Pack layering and node taxonomy drafted.
+- [x] Current packs documented as prototype/test assets, not binding target architecture.
 - [x] Strategy paper created.
 - [x] Documentation sprint plan created.
-- [ ] Official pack boundary review complete.
+- [x] Naming lock created for Capability Packs and Knowledge Packs.
+- [ ] New target Capability Pack catalogue drafted.
+- [ ] Current prototype packs/nodes classified for keep/rename/merge/split/deprecate/remove.
 - [ ] Canonical capability registry drafted.
 - [ ] Workflow template index drafted.
-- [ ] Supplier Data Pack specification complete.
+- [ ] Supplier Knowledge Pack specification complete.
 - [ ] AI retrieval requirements complete.
 - [ ] Marketplace screen specification complete.
 - [ ] Governance checklist complete.
@@ -681,30 +687,35 @@ Verification:
 Done:
 - Reframed Phase 20 from immediate professional bundle implementation to Marketplace documentation strategy.
 - Added Phase 20A Capability Pack planning as the first documentation priority.
+- Confirmed current Capability Pack families are not the target architecture.
 - Captured the strategic thesis that AI conversational search will favor structured knowledge catalogues over website-only discovery.
-- Defined that Capability Packs provide the operating grammar and Data Packs provide the knowledge catalogue.
-- Defined Data Packs as the supplier/seller knowledge catalogue unit.
+- Locked the Phase 20 product language: Capability Packs provide the operating grammar and Knowledge Packs provide the governed knowledge catalogue.
+- Defined Knowledge Packs as the supplier/seller knowledge catalogue unit.
+- Documented Data Pack as the legacy Phase 19 technical implementation term until a future compatibility migration.
+- Created `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`.
 - Created `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`.
 - Created `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`.
 - Created `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`.
 - Updated this sprint plan to make Phase 20 documentation-first.
 
 Next:
-- Review current official Capability Packs against the proposed pack boundaries.
+- Draft the new target Capability Pack catalogue for current and future business operations.
+- Classify current prototype packs/nodes as keep, rename, merge, split, deprecate, or remove.
 - Draft canonical capability registry and workflow template index.
-- Complete supplier Data Pack specification.
+- Complete supplier Knowledge Pack specification.
 - Complete AI retrieval/result-shape requirements.
 - Complete Marketplace screen specification.
 - Complete governance checklist and business model notes.
 - Convert the accepted documentation into Phase 21+ implementation backlog.
 
 Ad-hoc:
-- Phase 19C runtime provenance smoke test remains deferred because building a functional Data Pack-consuming workflow is not yet ergonomic.
-- Marketplace Data Pack documentation proceeds after Capability Pack ownership and indexing are accepted.
-- Professional Lados Pack Bundles are deferred to Phase 20B after Phase 20A planning is accepted.
+- Phase 19C runtime provenance smoke test remains deferred because building a functional Knowledge Pack-consuming workflow is not yet ergonomic.
+- Marketplace Knowledge Pack documentation proceeds after the new Capability Pack ownership and indexing are accepted.
+- Professional Lados Pack Bundles are deferred to Phase 20B after Phase 20A greenfield planning is accepted.
 
 Docs updated:
 - `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
+- `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`
 - `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`
 - `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`
 - `Sprint/Lados_V4_P18P-P20_Master_Checklist.md`
@@ -712,6 +723,35 @@ Docs updated:
 
 Verification:
 - Documentation-only update. No code verification required.
+
+### Phase 20 Naming Lock - 2026-07-02
+
+Done:
+- Locked the product language: Capability Pack means workflow capabilities, nodes, templates, and action grammar.
+- Locked Knowledge Pack as the new product name for governed knowledge catalogues, supplier listings, standards references, SOPs, compliance rules, technical guidelines, rates, and evidence rules.
+- Documented Data Pack as the legacy Phase 19 technical implementation name until a future compatibility migration.
+- Updated the Phase 20 strategy paper, active documentation sprint plan, Capability Pack planning paper, productization sprint plan, master checklist, and V4 README.
+
+Next:
+- Continue with the new target Capability Pack catalogue.
+- Draft the canonical capability registry and workflow template index.
+- Expand the Supplier Knowledge Pack specification and Marketplace screen specification.
+
+Ad-hoc:
+- Current code, migrations, smoke tests, and runtime logs may still use `data_pack_*` identifiers.
+- Product UI and new planning documents should use Knowledge Pack unless they are referring to legacy technical identifiers.
+
+Docs updated:
+- `Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md`
+- `Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md`
+- `Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md`
+- `Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md`
+- `Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md`
+- `Sprint/Lados_V4_P18P-P20_Master_Checklist.md`
+- `README.md`
+
+Verification:
+- Documentation-only update. Text scan completed for active Phase 20 terminology.
 
 ---
 

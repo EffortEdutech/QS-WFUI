@@ -8,8 +8,9 @@
     "start": "node dist/main",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:ci": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "test:watch": "jest --watch",
     "db:migrate": "echo 'Run migrations via Supabase dashboard or CLI'",
     "db:seed": "echo 'Run seeds via Supabase dashboard'"

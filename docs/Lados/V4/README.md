@@ -3,7 +3,7 @@
 **Platform:** Lados — Universal Business Workflow Engine  
 **Version:** 4.0  
 **Repository:** `QS-WFUI` (the git repo retains this name; the platform is Lados)  
-**Last Updated:** 2026-06-30
+**Last Updated:** 2026-07-02
 
 > **Note for new team members:** The git repository is called `QS-WFUI`. This is a legacy name from when the platform targeted Quantity Surveying workflows exclusively. The platform is now called **Lados** and supports universal business workflows across all industries. Do not confuse the repo folder name with the product name.
 
@@ -100,11 +100,13 @@ After the V4 architecture phases, the active next track is:
 |---|---|
 | [Lados_V4_P18P-P20_Master_Checklist.md](Sprint/Lados_V4_P18P-P20_Master_Checklist.md) | Checklist for Phase 18P Marketplace polish, Phase 19 Data Pack Engine, and Phase 20 Marketplace Knowledge Catalogue documentation |
 | [Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md](Sprint/Lados_V4_Sprint_P18P-P20_Productization_DataPacks_ProfessionalBundles.md) | Detailed sprint plan for turning Lados into a full product platform; Phase 20B keeps the professional bundle work |
-| [Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md](Design/Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md) | Technical paper for Data Packs, clean official pack bundles, and QS guardrails |
-| [Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md](Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md) | Phase 20A planning for Capability Pack taxonomy, node indexing, overlap control, and workflow template ownership |
+| [Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md](Design/Lados_V4_DataPacks_ProfessionalBundles_Tech_Paper.md) | Phase 19 technical paper for the legacy Data Pack Engine, clean official pack bundles, and QS guardrails |
+| [Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md](Design/Lados_V4_Phase20_Naming_Lock_Capability_Packs_Knowledge_Packs.md) | Phase 20 naming lock: Capability Packs are workflow capabilities; Knowledge Packs are governed knowledge catalogues |
+| [Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md](Design/Lados_V4_Phase20A_Capability_Pack_Planning_and_Node_Taxonomy.md) | Phase 20A greenfield planning for new Capability Packs, node indexing, overlap control, workflow template ownership, and prototype pack retirement |
+| [Lados_V4_Phase20A_Target_Capability_Pack_Catalogue.md](Design/Lados_V4_Phase20A_Target_Capability_Pack_Catalogue.md) | Draft target Capability Pack catalogue: official pack layers, ownership boundaries, dependencies, template families, and prototype mapping |
 | [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md](Design/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Strategy.md) | Phase 20 strategy for Marketplace as an AI-ready supplier/seller knowledge catalogue |
-| [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md](Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md) | Active Phase 20 documentation sprint plan for supplier Data Packs, AI search, governance, and marketplace business model |
-| [Lados_V4_P18P-P20_Verification_Playbook.md](Tests/Lados_V4_P18P-P20_Verification_Playbook.md) | Verification playbook for Marketplace, Data Packs, official bundles, and demo workflows |
+| [Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md](Sprint/Lados_V4_Phase20_Marketplace_Knowledge_Catalogue_Documentation.md) | Active Phase 20 documentation sprint plan for supplier Knowledge Packs, AI search, governance, and marketplace business model |
+| [Lados_V4_P18P-P20_Verification_Playbook.md](Tests/Lados_V4_P18P-P20_Verification_Playbook.md) | Verification playbook for Marketplace, Phase 19 Data Packs, official bundles, and demo workflows |
 
 ---
 
